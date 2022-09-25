@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandException;
 import org.spongepowered.api.command.CommandResult;
+import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.config.DefaultConfig;
@@ -42,7 +43,8 @@ public class Plugin {
     private Path configDir;
 
     private static final long defaultMaxTimer = Long.MAX_VALUE-1;
-    private static final AtomicBoolean debug = new AtomicBoolean(false);
+//    private static final AtomicBoolean debug = new AtomicBoolean(false);
+    private  static final AtomicLong restartWait = new AtomicLong(defaultMaxTimer);
     private static final AtomicLong timer = new AtomicLong(0);
     private static final AtomicLong maxTimer = new AtomicLong(defaultMaxTimer);
 
@@ -103,17 +105,31 @@ public class Plugin {
 
     private Optional<String> getDefaultConfigContents() {
         return Optional.of(
-                "timeout: "+defaultMaxTimer
+                "timeout: "+defaultMaxTimer+"\n"
+                +"restartWait: "+defaultMaxTimer
         );
     }
 
     @Listener
     public void PreInit(GamePreInitializationEvent event) throws IOException {
         logger.info("[DeadlockDetector] PreInit start");
+        loadConfig(Sponge.getServer().getConsole());
+        logger.info("[DeadlockDetector] PreInit end");
+    }
+    private void loadConfig(CommandSource src) throws IOException{
         root=configurationLoader.load();
         long newMaxTimer = root.getNode("timeout").getLong();
         long oldMaxTimer = maxTimer.getAndSet(newMaxTimer);
-        logger.info("[DeadlockDetector] PreInit end");
+
+        long newRebootWait = root.getNode("restartWait").getLong();
+        long oldRebootWait = restartWait.getAndSet(newRebootWait);
+
+        src.sendMessage(Text.of("Timer has been reset. "));
+        if(newMaxTimer!=oldMaxTimer)
+            src.sendMessage(Text.of("The Maximum timer value has changed from "+oldMaxTimer + " to "+ newMaxTimer+"."));
+        if (oldRebootWait!=newRebootWait)
+            src.sendMessage(Text.of("The Reboot Wait value has changed from "+oldRebootWait + " to "+ newRebootWait+"."));
+        logger.info("Reloaded Config. Issued by "+src.getIdentifier());
     }
     @Listener
     public void Init(GameInitializationEvent event){
@@ -122,15 +138,7 @@ public class Plugin {
             timer.set(0);
             if (src.hasPermission("deadlockdetector.reload")){
                 try {
-                    root=configurationLoader.load();
-                    long newMaxTimer = root.getNode("timeout").getLong();
-                    long oldMaxTimer = maxTimer.getAndSet(newMaxTimer);
-                    src.sendMessage(Text.of("Timer has been reset. " +
-                            ((newMaxTimer!=oldMaxTimer)
-                                    ? "The Maximum timer value has changed from "
-                                    +Long.toString(oldMaxTimer)+" to "+Long.toString(newMaxTimer)+"."
-                                    :"The Maximum Timer has not changed")));
-                    logger.info("Reloaded Config. Issued by "+src.getIdentifier());
+                    loadConfig(src);
                     return CommandResult.successCount(2);
                 } catch (IOException e) {
                     throw new CommandException(Text.of("Failed to load config"),e);
@@ -162,17 +170,20 @@ public class Plugin {
     public void start(GameStartedServerEvent start){
         Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-SR-1t-SetTimer").intervalTicks(1)
                 .execute(()->{
-                    if (!debug.get()) timer.set(0);
+//                    if (!debug.get())
+                        timer.set(0);
                 }).submit(this);
         Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-AR-1s-IncTimer-Eval")
                 .interval(1, TimeUnit.SECONDS)
                 .execute(()->{
                     long time = timer.getAndIncrement();
-                    if (time>maxTimer.get()){
+                    long maxTime = maxTimer.get();
+                    long rebootWait = restartWait.get();
+                    if (time>maxTime){
                         logger.warn("Server Thread has not been setting the timer for "+time+"s. Stopping.");
-
                         Sponge.getServer().shutdown(Text.of("Detected Deadlock. Restarting."));
-                        crash();
+                        if((maxTime+rebootWait-time)<0) crash();
+                        else logger.info("Waiting for "+(rebootWait+maxTime-time)+" more seconds for the server to reboot.");
                     }
                 }).submit(this);
     }
