@@ -45,6 +45,7 @@ public class Plugin {
     private static final long defaultMaxTimer = Long.MAX_VALUE-1;
 //    private static final AtomicBoolean debug = new AtomicBoolean(false);
     private  static final AtomicLong restartWait = new AtomicLong(defaultMaxTimer);
+    private static final AtomicBoolean serverAlreadyStopping = new AtomicBoolean(false);
     private static final AtomicLong timer = new AtomicLong(0);
     private static final AtomicLong maxTimer = new AtomicLong(defaultMaxTimer);
 
@@ -175,13 +176,17 @@ public class Plugin {
                 }).submit(this);
         Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-AR-1s-IncTimer-Eval")
                 .interval(1, TimeUnit.SECONDS)
+                .async()
                 .execute(()->{
                     long time = timer.getAndIncrement();
                     long maxTime = maxTimer.get();
                     long rebootWait = restartWait.get();
                     if (time>maxTime){
                         logger.warn("Server Thread has not been setting the timer for "+time+"s. Stopping.");
-                        Sponge.getServer().shutdown(Text.of("Detected Deadlock. Restarting."));
+                        if (!serverAlreadyStopping.get()) {
+                            serverAlreadyStopping.set(true);
+                            Sponge.getServer().shutdown(Text.of("Detected Deadlock. Restarting."));
+                        }
                         if((maxTime+rebootWait-time)<0) crash();
                         else logger.info("Waiting for "+(rebootWait+maxTime-time)+" more seconds for the server to reboot.");
                     }
