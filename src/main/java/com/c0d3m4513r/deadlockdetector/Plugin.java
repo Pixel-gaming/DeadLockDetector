@@ -138,16 +138,16 @@ public class Plugin {
             }
             return CommandResult.success();
         }).build();
-        CommandSpec debug = CommandSpec.builder().executor(((src, args) -> {
-            logger.info("Debug method. Setting timer to 1 above maxTimer");
-            timer.set(maxTimer.get()+1);
-            Plugin.debug.set(true);
-            return CommandResult.success();
-        })).build();
+//        CommandSpec debug = CommandSpec.builder().executor(((src, args) -> {
+//            logger.info("Debug method. Setting timer to 1 above maxTimer");
+//            timer.set(maxTimer.get()+1);
+//            Plugin.debug.set(true);
+//            return CommandResult.success();
+//        })).build();
         Sponge.getCommandManager().register(this,
                 CommandSpec.builder()
                         .child(reload,"reload")
-                        .child(debug,"debug")
+//                        .child(debug,"debug")
                         .executor((source,args)->{
                             logger.info("Manually reset timer. Issued by "+source.getIdentifier());
                             timer.set(0);
