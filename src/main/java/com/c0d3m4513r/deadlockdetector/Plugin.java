@@ -203,6 +203,7 @@ public class Plugin {
         //This will not work on forge modded servers, which sadly we are.
         //BTW: there are multiple calls here, just because the calls are not supposed to return.
         //If they do, something has gone not as expected.
+        logger.error("It has been determined, that the server has DEADLOCKED. TERMINATING SERVER, THIS PROCESS, THIS JAVA INSTANCE AND THIS JVM!");
 
         try {
             SecurityManager sm = new SecurityManager(){
