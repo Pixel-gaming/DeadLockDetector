@@ -181,6 +181,9 @@ public class Plugin {
                     long time = timer.getAndIncrement();
                     long maxTime = maxTimer.get();
                     long rebootWait = restartWait.get();
+                    if (time>=1){
+                        logger.warn("Server thread had no ticks in "+time+" Seconds.");
+                    }
                     if (time>maxTime){
                         logger.warn("Server Thread has not been setting the timer for "+time+"s. Stopping.");
                         if (!serverAlreadyStopping.get()) {
