@@ -30,6 +30,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.security.Permission;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,7 +47,7 @@ public class Plugin {
 //    private static final AtomicBoolean debug = new AtomicBoolean(false);
     private  static final AtomicLong restartWait = new AtomicLong(defaultMaxTimer);
     private static final AtomicBoolean serverAlreadyStopping = new AtomicBoolean(false);
-    private static final AtomicLong timer = new AtomicLong(0);
+    private static volatile Instant lastTick = null;
     private static final AtomicLong maxTimer = new AtomicLong(defaultMaxTimer);
 
     @NonNull
@@ -136,7 +137,7 @@ public class Plugin {
     public void Init(GameInitializationEvent event){
         logger.info("[DeadlockDetector] Init start");
         CommandSpec reload= CommandSpec.builder().executor((src, args) -> {
-            timer.set(0);
+            lastTick=Instant.now();
             if (src.hasPermission("deadlockdetector.reload")){
                 try {
                     loadConfig(src);
@@ -159,7 +160,7 @@ public class Plugin {
 //                        .child(debug,"debug")
                         .executor((source,args)->{
                             logger.info("Manually reset timer. Issued by "+source.getIdentifier());
-                            timer.set(0);
+                            lastTick=Instant.now();
                             return CommandResult.success();
                         })
                         .build(),
@@ -172,13 +173,14 @@ public class Plugin {
         Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-SR-1t-SetTimer").intervalTicks(1)
                 .execute(()->{
 //                    if (!debug.get())
-                        timer.set(0);
+                        lastTick=Instant.now();
                 }).submit(this);
         Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-AR-1s-IncTimer-Eval")
                 .interval(1, TimeUnit.SECONDS)
                 .async()
                 .execute(()->{
-                    long time = timer.getAndIncrement();
+                    if (lastTick==null){return;}
+                    long time = Instant.now().getEpochSecond()-lastTick.getEpochSecond();
                     long maxTime = maxTimer.get();
                     long rebootWait = restartWait.get();
                     if (time>=1){
