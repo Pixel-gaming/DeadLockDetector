@@ -9,6 +9,8 @@ import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandException;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.command.CommandSource;
+import org.spongepowered.api.command.args.CommandElement;
+import org.spongepowered.api.command.args.GenericArguments;
 import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.config.DefaultConfig;
@@ -31,24 +33,28 @@ import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.security.Permission;
 import java.time.Instant;
+import java.time.temporal.ChronoField;
+import java.time.temporal.TemporalField;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.*;
 
-@org.spongepowered.api.plugin.Plugin(id = "deadlockdetector",name = "DeadlockDetector")
+@org.spongepowered.api.plugin.Plugin(id = "deadlockdetector", name = "DeadlockDetector")
 public class Plugin {
     @NonNull
     @Inject(optional = true)
     @ConfigDir(sharedRoot = false)
     private Path configDir;
 
-    private static final long defaultMaxTimer = Long.MAX_VALUE-1;
+    private static final long defaultMaxTimer = Long.MAX_VALUE - 1;
 //    private static final AtomicBoolean debug = new AtomicBoolean(false);
-    private  static final AtomicLong restartWait = new AtomicLong(defaultMaxTimer);
+    private static final AtomicLong restartWait = new AtomicLong(defaultMaxTimer);
     private static final AtomicBoolean serverAlreadyStopping = new AtomicBoolean(false);
     private static volatile Instant lastTick = null;
     private static final AtomicLong maxTimer = new AtomicLong(defaultMaxTimer);
+    private static final ScheduledThreadPoolExecutor pool = new ScheduledThreadPoolExecutor(1, new DeamonThreadFactory());
 
     @NonNull
     @Inject(optional = true)
@@ -65,19 +71,19 @@ public class Plugin {
     public Plugin(@NonNull PluginContainer container, @NonNull final Logger logger) throws IOException {
         logger.info("[DeadlockDetector] Construct start");
         //Init config stuff
-        if (configDir==null){
+        if (configDir == null) {
             logger.warn("[DeadlockDetector] Manually getting config-dir from sponge, because the Injector did not inject the config dir");
             configDir = Sponge.getConfigManager().getPluginConfig(container).getDirectory();
         }
         configDir.toFile().mkdirs();
-        if (configFile==null){
+        if (configFile == null) {
             logger.warn("[DeadlockDetector] Manually constructing config-file, because the Injector did not inject the config dir");
             configFile = configDir.resolve("config.yml");
         }
-        logger.info("[DeadlockDetector] The Plugin Config directory is '"+configDir.toString()+"'.");
-        logger.info("[DeadlockDetector] The Plugin Config File is '"+configFile.toString()+"'.");
+        logger.info("[DeadlockDetector] The Plugin Config directory is '" + configDir.toString() + "'.");
+        logger.info("[DeadlockDetector] The Plugin Config File is '" + configFile.toString() + "'.");
         //Init config loader
-        this.logger=logger;
+        this.logger = logger;
         //init api, register events
         {
             File configFileFile = new File(configFile.toUri());
@@ -87,12 +93,12 @@ public class Plugin {
                 BufferedWriter writer = new BufferedWriter(fw);
                 logger.info("[DeadlockDetector] Created Writers");
                 Optional<String> os = getDefaultConfigContents();
-                if (os.isPresent()){
+                if (os.isPresent()) {
                     logger.info("[DeadlockDetector] Got default String");
                     writer.write(os.get());
                     writer.flush();
                     logger.info("[DeadlockDetector] Wrote default Config");
-                }else {
+                } else {
                     logger.info("[DeadlockDetector] Got no String from the getDefaultConfigContents method.");
                 }
                 writer.close();
@@ -101,14 +107,14 @@ public class Plugin {
         }
 
         configurationLoader = YAMLConfigurationLoader.builder().setIndent(2).setPath(configFile).build();
-        root=configurationLoader.load();
+        root = configurationLoader.load();
         logger.info("[DeadlockDetector] Construct end");
     }
 
     private Optional<String> getDefaultConfigContents() {
         return Optional.of(
-                "timeout: "+defaultMaxTimer+"\n"
-                +"restartWait: "+defaultMaxTimer
+                "timeout: " + defaultMaxTimer + "\n"
+                        + "restartWait: " + defaultMaxTimer
         );
     }
 
@@ -118,8 +124,9 @@ public class Plugin {
         loadConfig(Sponge.getServer().getConsole());
         logger.info("[DeadlockDetector] PreInit end");
     }
-    private void loadConfig(CommandSource src) throws IOException{
-        root=configurationLoader.load();
+
+    private void loadConfig(CommandSource src) throws IOException {
+        root = configurationLoader.load();
         long newMaxTimer = root.getNode("timeout").getLong();
         long oldMaxTimer = maxTimer.getAndSet(newMaxTimer);
 
@@ -127,23 +134,24 @@ public class Plugin {
         long oldRebootWait = restartWait.getAndSet(newRebootWait);
 
         src.sendMessage(Text.of("Timer has been reset. "));
-        if(newMaxTimer!=oldMaxTimer)
-            src.sendMessage(Text.of("The Maximum timer value has changed from "+oldMaxTimer + " to "+ newMaxTimer+"."));
-        if (oldRebootWait!=newRebootWait)
-            src.sendMessage(Text.of("The Reboot Wait value has changed from "+oldRebootWait + " to "+ newRebootWait+"."));
-        logger.info("Reloaded Config. Issued by "+src.getIdentifier());
+        if (newMaxTimer != oldMaxTimer)
+            src.sendMessage(Text.of("The Maximum timer value has changed from " + oldMaxTimer + " to " + newMaxTimer + "."));
+        if (oldRebootWait != newRebootWait)
+            src.sendMessage(Text.of("The Reboot Wait value has changed from " + oldRebootWait + " to " + newRebootWait + "."));
+        logger.info("Reloaded Config. Issued by " + src.getIdentifier());
     }
+
     @Listener
-    public void Init(GameInitializationEvent event){
+    public void Init(GameInitializationEvent event) {
         logger.info("[DeadlockDetector] Init start");
-        CommandSpec reload= CommandSpec.builder().executor((src, args) -> {
-            lastTick=Instant.now();
-            if (src.hasPermission("deadlockdetector.reload")){
+        CommandSpec reload = CommandSpec.builder().executor((src, args) -> {
+            lastTick = Instant.now();
+            if (src.hasPermission("deadlockdetector.reload")) {
                 try {
                     loadConfig(src);
                     return CommandResult.successCount(2);
                 } catch (IOException e) {
-                    throw new CommandException(Text.of("Failed to load config"),e);
+                    throw new CommandException(Text.of("Failed to load config"), e);
                 }
             }
             return CommandResult.success();
@@ -154,13 +162,29 @@ public class Plugin {
 //            Plugin.debug.set(true);
 //            return CommandResult.success();
 //        })).build();
+//        CommandSpec sleep = CommandSpec.builder().executor((src, args) -> {
+//                        Sponge.getScheduler().createTaskBuilder().execute(
+//                                ()->{
+//                                    try {
+//                                    Thread.sleep((Long) args.getOne(Text.of("time")).orElse(0L));
+//                                        } catch (InterruptedException e) {
+//                                        //throw new CommandException(Text.of("exception"),e);
+//                                    }
+//
+//                                }
+//                        ).submit(this);
+//                        return CommandResult.success();
+//                })
+//                .arguments(GenericArguments.longNum(Text.of("time")))
+//                .build();
         Sponge.getCommandManager().register(this,
                 CommandSpec.builder()
-                        .child(reload,"reload")
+                        .child(reload, "reload")
+//                        .child(sleep,"sleep")
 //                        .child(debug,"debug")
-                        .executor((source,args)->{
-                            logger.info("Manually reset timer. Issued by "+source.getIdentifier());
-                            lastTick=Instant.now();
+                        .executor((source, args) -> {
+                            logger.info("Manually reset timer. Issued by " + source.getIdentifier());
+                            lastTick = Instant.now();
                             return CommandResult.success();
                         })
                         .build(),
@@ -169,33 +193,41 @@ public class Plugin {
     }
 
     @Listener
-    public void start(GameStartedServerEvent start){
+    public void start(GameStartedServerEvent start) {
         Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-SR-1t-SetTimer").intervalTicks(1)
-                .execute(()->{
+                .execute(() -> {
 //                    if (!debug.get())
-                        lastTick=Instant.now();
+                    lastTick = Instant.now();
                 }).submit(this);
-        Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-AR-1s-IncTimer-Eval")
-                .interval(1, TimeUnit.SECONDS)
-                .async()
-                .execute(()->{
-                    if (lastTick==null){return;}
-                    long time = Instant.now().getEpochSecond()-lastTick.getEpochSecond();
-                    long maxTime = maxTimer.get();
-                    long rebootWait = restartWait.get();
-                    if (time>=1){
-                        logger.warn("Server thread had no ticks in "+time+" Seconds.");
-                    }
-                    if (time>maxTime){
-                        logger.warn("Server Thread has not been setting the timer for "+time+"s. Stopping.");
-                        if (!serverAlreadyStopping.get()) {
-                            serverAlreadyStopping.set(true);
-                            Sponge.getServer().shutdown(Text.of("Detected Deadlock. Restarting."));
-                        }
-                        if((maxTime+rebootWait-time)<0) crash();
-                        else logger.info("Waiting for "+(rebootWait+maxTime-time)+" more seconds for the server to reboot.");
-                    }
-                }).submit(this);
+        Runnable detectDeadlockAsyncThread = () -> {
+            if (lastTick == null) {
+                return;
+            }
+            long time = Instant.now().getEpochSecond() - lastTick.getEpochSecond();
+            long maxTime = maxTimer.get();
+            long rebootWait = restartWait.get();
+            if (time >= 5) {
+                logger.warn("Server thread had no ticks in " + time + " Seconds.");
+            }
+            if (Instant.now().isAfter(lastTick.plusSeconds(maxTime))) { //time>maxTime
+                logger.warn("Server Thread has not been setting the timer for " + time + "s. Stopping.");
+                if (!serverAlreadyStopping.get()) {
+                    serverAlreadyStopping.set(true);
+                    Sponge.getServer().shutdown(Text.of("Detected Deadlock. Restarting."));
+                    logger.error("Detected Deadlock. Restarting.");
+                }
+                //(maxTime+rebootWait-time)<0
+                if (Instant.now().isAfter(lastTick.plusSeconds(maxTime + rebootWait))) crash();
+                else
+                    logger.info("Waiting for " + (rebootWait + maxTime - time) + " more seconds for the server to reboot.");
+            }
+        };
+        pool.scheduleAtFixedRate(detectDeadlockAsyncThread,1,1,TimeUnit.SECONDS);
+//        Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-AR-1s-IncTimer-Eval")
+//                .interval(1, TimeUnit.SECONDS)
+//                .async()
+//                .execute(detectDeadlockAsyncThread).submit(this);
+        logger.info("Started Threads");
     }
 
     private static Unsafe getUnsafe() throws NoSuchFieldException, IllegalAccessException {
@@ -203,7 +235,8 @@ public class Plugin {
         theUnsafe.setAccessible(true);
         return (Unsafe) theUnsafe.get(null);
     }
-    private void crash(){
+
+    private void crash() {
         //fml looks for these methods, and replaces them.
         //This will not work on forge modded servers, which sadly we are.
         //BTW: there are multiple calls here, just because the calls are not supposed to return.
@@ -211,33 +244,36 @@ public class Plugin {
         logger.error("It has been determined, that the server has DEADLOCKED. TERMINATING SERVER, THIS PROCESS, THIS JAVA INSTANCE AND THIS JVM!");
 
         try {
-            SecurityManager sm = new SecurityManager(){
+            SecurityManager sm = new SecurityManager() {
                 @Override
-                public void checkExit(int status) {}
+                public void checkExit(int status) {
+                }
+
                 @Override
-                public void checkPermission(Permission perm) {}
+                public void checkPermission(Permission perm) {
+                }
             };
             System.setSecurityManager(sm);
-        }catch (Throwable e){
-            logger.info("Could not set a custom Security manager. ",e);
+        } catch (Throwable e) {
+            logger.info("Could not set a custom Security manager. ", e);
         }
 
         try {
             System.exit(-1);
-        } catch (Throwable e){
-            logger.info("System.exit threw:",e);
+        } catch (Throwable e) {
+            logger.info("System.exit threw:", e);
         }
         logger.error("System.exit returned.");
         try {
             Runtime.getRuntime().exit(-1);
-        }catch (Throwable e){
-            logger.info("Runtime.getRuntime().exit:",e);
+        } catch (Throwable e) {
+            logger.info("Runtime.getRuntime().exit:", e);
         }
         logger.error("Runtime.getRuntime().exit returned.");
         try {
             Runtime.getRuntime().halt(-1);
-        }catch (Throwable e){
-            logger.info("Runtime.getRuntime().halt threw:",e);
+        } catch (Throwable e) {
+            logger.info("Runtime.getRuntime().halt threw:", e);
         }
         logger.error("Runtime.getRuntime().halt returned.");
 
@@ -246,27 +282,27 @@ public class Plugin {
             try {
                 Method m = clazz.getDeclaredMethod("exit", int.class);
                 m.setAccessible(true);
-                m.invoke(null,-1);
-            }catch (Throwable e){
-                logger.error("Cannot call Shutdown.exit. ",e);
+                m.invoke(null, -1);
+            } catch (Throwable e) {
+                logger.error("Cannot call Shutdown.exit. ", e);
             }
             try {
                 Method m = clazz.getDeclaredMethod("halt", int.class);
                 m.setAccessible(true);
-                m.invoke(null,-1);
-            }catch (Throwable e){
-                logger.error("Cannot call Shutdown.halt. ",e);
+                m.invoke(null, -1);
+            } catch (Throwable e) {
+                logger.error("Cannot call Shutdown.halt. ", e);
             }
-        }catch (Throwable e){
-            logger.error("Cannot get Shutdown class. ",e);
+        } catch (Throwable e) {
+            logger.error("Cannot get Shutdown class. ", e);
         }
 
         //This should produce some sort of segfault or something.
         //You usually are not supposed to get stuff from the first page.
         try {
             getUnsafe().getByte(0);
-        } catch (Throwable e){
-            logger.info("getUnsafe().getByte(0) threw:",e);
+        } catch (Throwable e) {
+            logger.info("getUnsafe().getByte(0) threw:", e);
         }
         logger.error("getUnsafe().getByte(0) returned.");
         logger.error("I do not have another way of crashing the jvm rn. This is the end.");
