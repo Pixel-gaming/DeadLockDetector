@@ -138,18 +138,18 @@ public class Plugin {
     @Listener
     public void Init(GameInitializationEvent event) {
         logger.info("[DeadlockDetector] Init start");
-        CommandSpec reload = CommandSpec.builder().executor((src, args) -> {
-            heartbeat();
-            if (src.hasPermission("deadlockdetector.reload")) {
-                try {
-                    loadConfig(src);
-                    return CommandResult.successCount(2);
-                } catch (IOException e) {
-                    throw new CommandException(Text.of("Failed to load config"), e);
-                }
-            }
-            return CommandResult.success();
-        }).build();
+//        CommandSpec reload = CommandSpec.builder().executor((src, args) -> {
+//            heartbeat();
+//            if (src.hasPermission("deadlockdetector.reload")) {
+//                try {
+//                    loadConfig(src);
+//                    return CommandResult.successCount(2);
+//                } catch (IOException e) {
+//                    throw new CommandException(Text.of("Failed to load config"), e);
+//                }
+//            }
+//            return CommandResult.success();
+//        }).build();
 //        CommandSpec debug = CommandSpec.builder().executor(((src, args) -> {
 //            logger.info("Debug method. Setting timer to 1 above maxTimer");
 //            timer.set(maxTimer.get()+1);
@@ -171,18 +171,18 @@ public class Plugin {
 //                })
 //                .arguments(GenericArguments.longNum(Text.of("time")))
 //                .build();
-        Sponge.getCommandManager().register(this,
-                CommandSpec.builder()
-                        .child(reload, "reload")
+//        Sponge.getCommandManager().register(this,
+//                CommandSpec.builder()
+//                        .child(reload, "reload")
 //                        .child(sleep,"sleep")
 //                        .child(debug,"debug")
-                        .executor((source, args) -> {
-                            logger.info("Manually reset timer. Issued by " + source.getIdentifier());
-                            heartbeat();
-                            return CommandResult.success();
-                        })
-                        .build(),
-                "deadlockdetector");
+//                        .executor((source, args) -> {
+//                            logger.info("Manually reset timer. Issued by " + source.getIdentifier());
+//                            heartbeat();
+//                            return CommandResult.success();
+//                        })
+//                        .build(),
+//                "deadlockdetector");
         logger.info("[DeadlockDetector] Init end");
     }
 
