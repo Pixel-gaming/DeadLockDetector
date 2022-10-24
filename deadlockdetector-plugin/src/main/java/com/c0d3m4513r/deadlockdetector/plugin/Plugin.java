@@ -1,5 +1,6 @@
-package com.c0d3m4513r.deadlockdetector;
+package com.c0d3m4513r.deadlockdetector.plugin;
 
+import com.c0d3m4513r.deadlockdetector.api.ServerWatcher;
 import com.google.inject.Inject;
 import lombok.NonNull;
 import ninja.leaping.configurate.ConfigurationNode;
@@ -9,35 +10,22 @@ import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandException;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.command.CommandSource;
-import org.spongepowered.api.command.args.CommandElement;
 import org.spongepowered.api.command.args.GenericArguments;
 import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.config.DefaultConfig;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.game.state.GameInitializationEvent;
-import org.spongepowered.api.event.game.state.GameLoadCompleteEvent;
 import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.text.Text;
-import sun.misc.Unsafe;
 
-import java.awt.*;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+import java.io.*;
 import java.nio.file.Path;
-import java.security.Permission;
-import java.time.Instant;
-import java.time.temporal.ChronoField;
-import java.time.temporal.TemporalField;
+import java.security.CodeSource;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.*;
 
@@ -51,10 +39,14 @@ public class Plugin {
     private static final long defaultMaxTimer = Long.MAX_VALUE - 1;
 //    private static final AtomicBoolean debug = new AtomicBoolean(false);
     private static final AtomicLong restartWait = new AtomicLong(defaultMaxTimer);
-    private static final AtomicBoolean serverAlreadyStopping = new AtomicBoolean(false);
-    private static volatile Instant lastTick = null;
+//    private static final AtomicBoolean serverAlreadyStopping = new AtomicBoolean(false);
+//    private static volatile Instant lastTick = null;
+    private static Process proc;
+    private static Writer o;
+//    private static Scanner i;
+//    private static Instant lastAsyncExec = null;
     private static final AtomicLong maxTimer = new AtomicLong(defaultMaxTimer);
-    private static final ScheduledThreadPoolExecutor pool = new ScheduledThreadPoolExecutor(1, new DeamonThreadFactory());
+//    private static final ScheduledExecutorService pool = Executors.newSingleThreadScheduledExecutor(new DeamonThreadFactory());
 
     @NonNull
     @Inject(optional = true)
@@ -114,7 +106,9 @@ public class Plugin {
     private Optional<String> getDefaultConfigContents() {
         return Optional.of(
                 "timeout: " + defaultMaxTimer + "\n"
-                        + "restartWait: " + defaultMaxTimer
+                    + "restartWait: " + defaultMaxTimer +"\n"
+                    + "id: "+"INSERT-ID-HERE\n"
+                    + "key: "+"INSERT-API-TOKEN-HERE"
         );
     }
 
@@ -145,7 +139,7 @@ public class Plugin {
     public void Init(GameInitializationEvent event) {
         logger.info("[DeadlockDetector] Init start");
         CommandSpec reload = CommandSpec.builder().executor((src, args) -> {
-            lastTick = Instant.now();
+            heartbeat();
             if (src.hasPermission("deadlockdetector.reload")) {
                 try {
                     loadConfig(src);
@@ -184,7 +178,7 @@ public class Plugin {
 //                        .child(debug,"debug")
                         .executor((source, args) -> {
                             logger.info("Manually reset timer. Issued by " + source.getIdentifier());
-                            lastTick = Instant.now();
+                            heartbeat();
                             return CommandResult.success();
                         })
                         .build(),
@@ -194,118 +188,162 @@ public class Plugin {
 
     @Listener
     public void start(GameStartedServerEvent start) {
-        Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-SR-1t-SetTimer").intervalTicks(1)
-                .execute(() -> {
-//                    if (!debug.get())
-                    lastTick = Instant.now();
-                }).submit(this);
-        Runnable detectDeadlockAsyncThread = () -> {
-            if (lastTick == null) {
-                return;
-            }
-            long time = Instant.now().getEpochSecond() - lastTick.getEpochSecond();
-            long maxTime = maxTimer.get();
-            long rebootWait = restartWait.get();
-            if (time >= 5) {
-                logger.warn("Server thread had no ticks in " + time + " Seconds.");
-            }
-            if (Instant.now().isAfter(lastTick.plusSeconds(maxTime))) { //time>maxTime
-                logger.warn("Server Thread has not been setting the timer for " + time + "s. Stopping.");
-                if (!serverAlreadyStopping.get()) {
-                    serverAlreadyStopping.set(true);
-                    Sponge.getServer().shutdown(Text.of("Detected Deadlock. Restarting."));
-                    logger.error("Detected Deadlock. Restarting.");
+        try {
+            CodeSource codeSource = Plugin.class.getProtectionDomain().getCodeSource();
+            String jarFile = codeSource
+                    .getLocation()
+                    .getPath();
+            jarFile=jarFile.substring(0,jarFile.indexOf('!')).replace("file:","");
+            String java = System.getProperties().getProperty("java.home") + File.separator + "bin" + File.separator + "java"+(System.getProperty("os.name").startsWith("Win")?".exe":"");
+//            logger.error("File: "+jarFile);
+//            logger.error("Java: "+java);
+//            java=new File(java).getPath();
+//            logger.error("Java normalized: "+java);
+
+            proc=new ProcessBuilder(new File(java).getPath(),
+                    "-jar",
+                    new File(jarFile).getPath())
+                    .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+                    .redirectError(ProcessBuilder.Redirect.INHERIT)
+                    .redirectInput(ProcessBuilder.Redirect.PIPE)
+                    .start();
+            o = new OutputStreamWriter(proc.getOutputStream());
+            o.write(maxTimer.longValue()+" ");
+            o.write(restartWait.get()+" ");
+            o.write(root.getNode("id").getString("")+"\n");
+            o.write(root.getNode("key").getString("")+"\n");
+            o.flush();
+            heartbeat();
+//            i = new Scanner(proc.getInputStream());
+            ForkJoinPool.commonPool().execute(()->{
+                Scanner sce = new Scanner(proc.getErrorStream());
+                Scanner scw = new Scanner(proc.getInputStream());
+                //noinspection InfiniteLoopStatement
+                while(true){
+                    if (sce.hasNextLine()) {
+                        String l = sce.nextLine();
+                        if (!l.isEmpty())
+                            logger.error(l);
+                    }
+                    if (scw.hasNextLine()){
+                        String l = scw.nextLine();
+                        if (!l.isEmpty())
+                            logger.warn(l);
+                    }
+                    try{
+                        //noinspection BusyWait
+                        Thread.sleep(10);
+                    }catch (InterruptedException ignored){}
                 }
-                //(maxTime+rebootWait-time)<0
-                if (Instant.now().isAfter(lastTick.plusSeconds(maxTime + rebootWait))) crash();
-                else
-                    logger.info("Waiting for " + (rebootWait + maxTime - time) + " more seconds for the server to reboot.");
-            }
-        };
-        pool.scheduleAtFixedRate(detectDeadlockAsyncThread,1,1,TimeUnit.SECONDS);
-//        Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-AR-1s-IncTimer-Eval")
-//                .interval(1, TimeUnit.SECONDS)
-//                .async()
-//                .execute(detectDeadlockAsyncThread).submit(this);
+            });
+        } catch (Exception e) {
+            logger.warn("Process exception:",e);
+        }
+        Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-SR-1t-Heartbeat").intervalTicks(1).delayTicks(0)
+                .execute(() -> {
+                    Sponge.getScheduler().createTaskBuilder().async().execute(this::heartbeat).submit(this);
+                }).submit(this);
         logger.info("Started Threads");
     }
 
-    private static Unsafe getUnsafe() throws NoSuchFieldException, IllegalAccessException {
-        Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
-        theUnsafe.setAccessible(true);
-        return (Unsafe) theUnsafe.get(null);
+    private void heartbeat(){
+        try {
+            o.write(ServerWatcher.heartbeat+"\n");
+            o.flush();
+        }catch (IOException e){
+            logger.warn("error during heatbeat: ",e);
+        }
     }
-
-    private void crash() {
-        //fml looks for these methods, and replaces them.
-        //This will not work on forge modded servers, which sadly we are.
-        //BTW: there are multiple calls here, just because the calls are not supposed to return.
-        //If they do, something has gone not as expected.
-        logger.error("It has been determined, that the server has DEADLOCKED. TERMINATING SERVER, THIS PROCESS, THIS JAVA INSTANCE AND THIS JVM!");
-
-        try {
-            SecurityManager sm = new SecurityManager() {
-                @Override
-                public void checkExit(int status) {
-                }
-
-                @Override
-                public void checkPermission(Permission perm) {
-                }
-            };
-            System.setSecurityManager(sm);
-        } catch (Throwable e) {
-            logger.info("Could not set a custom Security manager. ", e);
-        }
-
-        try {
-            System.exit(-1);
-        } catch (Throwable e) {
-            logger.info("System.exit threw:", e);
-        }
-        logger.error("System.exit returned.");
-        try {
-            Runtime.getRuntime().exit(-1);
-        } catch (Throwable e) {
-            logger.info("Runtime.getRuntime().exit:", e);
-        }
-        logger.error("Runtime.getRuntime().exit returned.");
-        try {
-            Runtime.getRuntime().halt(-1);
-        } catch (Throwable e) {
-            logger.info("Runtime.getRuntime().halt threw:", e);
-        }
-        logger.error("Runtime.getRuntime().halt returned.");
-
-        try {
-            Class<?> clazz = ClassLoader.getSystemClassLoader().loadClass("java.lang.Shutdown");
-            try {
-                Method m = clazz.getDeclaredMethod("exit", int.class);
-                m.setAccessible(true);
-                m.invoke(null, -1);
-            } catch (Throwable e) {
-                logger.error("Cannot call Shutdown.exit. ", e);
-            }
-            try {
-                Method m = clazz.getDeclaredMethod("halt", int.class);
-                m.setAccessible(true);
-                m.invoke(null, -1);
-            } catch (Throwable e) {
-                logger.error("Cannot call Shutdown.halt. ", e);
-            }
-        } catch (Throwable e) {
-            logger.error("Cannot get Shutdown class. ", e);
-        }
-
-        //This should produce some sort of segfault or something.
-        //You usually are not supposed to get stuff from the first page.
-        try {
-            getUnsafe().getByte(0);
-        } catch (Throwable e) {
-            logger.info("getUnsafe().getByte(0) threw:", e);
-        }
-        logger.error("getUnsafe().getByte(0) returned.");
-        logger.error("I do not have another way of crashing the jvm rn. This is the end.");
-    }
+//    private void handleOut(){
+//        while (i.hasNext()){
+//            String l = i.nextLine();
+//            if (l.equals(ServerWatcher.shutdown)) shutdown();
+//            else if (l.equals(ServerWatcher.crash)) crash();
+//        }
+//    }
+//    private void shutdown(){
+//        if (!serverAlreadyStopping.get()) {
+//            serverAlreadyStopping.set(true);
+//            Sponge.getServer().shutdown(Text.of("Detected Deadlock. Restarting."));
+//            logger.error("Detected Deadlock. Restarting.");
+//        }
+//    }
+//    private static Unsafe getUnsafe() throws NoSuchFieldException, IllegalAccessException {
+//        Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
+//        theUnsafe.setAccessible(true);
+//        return (Unsafe) theUnsafe.get(null);
+//    }
+//
+//    private void crash() {
+//        //fml looks for these methods, and replaces them.
+//        //This will not work on forge modded servers, which sadly we are.
+//        //BTW: there are multiple calls here, just because the calls are not supposed to return.
+//        //If they do, something has gone not as expected.
+//        logger.error("It has been determined, that the server has DEADLOCKED. TERMINATING SERVER, THIS PROCESS, THIS JAVA INSTANCE AND THIS JVM!");
+//
+//        try {
+//            SecurityManager sm = new SecurityManager() {
+//                @Override
+//                public void checkExit(int status) {
+//                }
+//
+//                @Override
+//                public void checkPermission(Permission perm) {
+//                }
+//            };
+//            System.setSecurityManager(sm);
+//        } catch (Throwable e) {
+//            logger.info("Could not set a custom Security manager. ", e);
+//        }
+//
+//        try {
+//            System.exit(-1);
+//        } catch (Throwable e) {
+//            logger.info("System.exit threw:", e);
+//        }
+//        logger.error("System.exit returned.");
+//        try {
+//            Runtime.getRuntime().exit(-1);
+//        } catch (Throwable e) {
+//            logger.info("Runtime.getRuntime().exit:", e);
+//        }
+//        logger.error("Runtime.getRuntime().exit returned.");
+//        try {
+//            Runtime.getRuntime().halt(-1);
+//        } catch (Throwable e) {
+//            logger.info("Runtime.getRuntime().halt threw:", e);
+//        }
+//        logger.error("Runtime.getRuntime().halt returned.");
+//
+//        try {
+//            Class<?> clazz = ClassLoader.getSystemClassLoader().loadClass("java.lang.Shutdown");
+//            try {
+//                Method m = clazz.getDeclaredMethod("exit", int.class);
+//                m.setAccessible(true);
+//                m.invoke(null, -1);
+//            } catch (Throwable e) {
+//                logger.error("Cannot call Shutdown.exit. ", e);
+//            }
+//            try {
+//                Method m = clazz.getDeclaredMethod("halt", int.class);
+//                m.setAccessible(true);
+//                m.invoke(null, -1);
+//            } catch (Throwable e) {
+//                logger.error("Cannot call Shutdown.halt. ", e);
+//            }
+//        } catch (Throwable e) {
+//            logger.error("Cannot get Shutdown class. ", e);
+//        }
+//
+//        //This should produce some sort of segfault or something.
+//        //You usually are not supposed to get stuff from the first page.
+//        try {
+//            getUnsafe().getByte(0);
+//        } catch (Throwable e) {
+//            logger.info("getUnsafe().getByte(0) threw:", e);
+//        }
+//        logger.error("getUnsafe().getByte(0) returned.");
+//        logger.error("I do not have another way of crashing the jvm rn. This is the end.");
+//    }
 
 }
