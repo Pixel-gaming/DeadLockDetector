@@ -15,7 +15,7 @@ import java.util.Scanner;
 import java.util.concurrent.*;
 
 public class ServerWatcherChild {
-    public static final String PERADACTYL_URL="REDACTED";
+    String perodactylUrl;
     Scanner scn;
     volatile long maxTimer;
     volatile long maxRebootWait;
@@ -86,9 +86,9 @@ public class ServerWatcherChild {
     }
     private void reactivate(){
         reactivateTask=null;
+        lastHeartBeat=null;
         active=true;
         logger.info("Reactivating DeadLockDetector, because timeout has passed. Deleting last Heartbeat info, to avoid restarting the server instantly if it is lagging badly.");
-        lastHeartBeat=null;
     }
     private void run(){
         logger.info("Created ServerWatcherChild");
@@ -161,7 +161,7 @@ public class ServerWatcherChild {
     private void action(@NonNull String api,@NonNull String requestMethod,String data){
         InputStream error=null;
         try{
-            URL url = new URL(PERADACTYL_URL+api);
+            URL url = new URL(perodactylUrl +api);
             HttpURLConnection con = (HttpURLConnection)url.openConnection();
             con.setRequestMethod(requestMethod);
             con.setRequestProperty("Accept","application/json");
@@ -183,7 +183,7 @@ public class ServerWatcherChild {
         } catch (MalformedURLException mue){
             throw new RuntimeException(mue);
         } catch (IOException e){
-            logger.error("Tried to send action to Pterodactyl at '"+PERADACTYL_URL+api+"'. There was an error:",e);
+            logger.error("Tried to send action to Pterodactyl at '"+ perodactylUrl +api+"'. There was an error:",e);
             if(error!=null){
                 Scanner scn = new Scanner(error);
                 while (scn.hasNextLine()) System.err.println(scn.nextLine());

@@ -44,6 +44,7 @@ public class Plugin {
     private static final long defaultMaxTimer = Long.MAX_VALUE - 1;
 //    private static final AtomicBoolean debug = new AtomicBoolean(false);
     private static final AtomicLong restartWait = new AtomicLong(defaultMaxTimer);
+    private static boolean startOnServerStart;
 //    private static final AtomicBoolean serverAlreadyStopping = new AtomicBoolean(false);
 //    private static volatile Instant lastTick = null;
     private static Process proc;
@@ -112,8 +113,9 @@ public class Plugin {
         return Optional.of(
                 "timeout: " + defaultMaxTimer + "\n"
                     + "restartWait: " + defaultMaxTimer +"\n"
-                    + "id: "+"INSERT-ID-HERE\n"
-                    + "key: "+"INSERT-API-TOKEN-HERE"
+                    + "url: "+"INSERT-Perodactyl-Url-HERE\n"
+                    + "key: "+"INSERT-API-TOKEN-HERE\n"
+                    + "startOnServerStart: true"
         );
     }
 
@@ -131,6 +133,8 @@ public class Plugin {
 
         long newRebootWait = root.getNode("restartWait").getLong();
         long oldRebootWait = restartWait.getAndSet(newRebootWait);
+
+        startOnServerStart = root.getNode("startOnServerStart").getBoolean(true);
 
         if (newMaxTimer != oldMaxTimer)
             src.sendMessage(Text.of("The Maximum timer value has changed from " + oldMaxTimer + " to " + newMaxTimer + "."));
@@ -211,8 +215,10 @@ public class Plugin {
 
     @Listener
     public void start(GameStartedServerEvent start) {
-        startProcess();
-        sendConfig();
+        if(startOnServerStart){
+            startProcess();
+            sendConfig();
+        }
         Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-SR-1t-Heartbeat").intervalTicks(1).delayTicks(0)
                 .execute(() -> {
                     Sponge.getScheduler().createTaskBuilder().async().execute(this::heartbeat).submit(this);
@@ -244,6 +250,7 @@ public class Plugin {
                     .redirectInput(ProcessBuilder.Redirect.PIPE)
                     .start();
             o=new OutputStreamWriter(proc.getOutputStream());
+            sendConfig();
             heartbeat();
 //            i = new Scanner(proc.getInputStream());
         } catch (Exception e) {
@@ -251,12 +258,13 @@ public class Plugin {
         }
     }
     private void sendConfig(){
-        startProcess();
+        if(o==null || proc==null || !proc.isAlive()) startProcess();
         sendValue(
                 ServerWatcher.config,"\n",
                 Long.toString(maxTimer.longValue())," ",
                 Long.toString(restartWait.get())," ",
-                root.getNode("id").getString(""),"\n",
+                System.getenv("P_SERVER_UUID"),"\n",
+                root.getNode("panel-url").getString(""), "\n",
                 root.getNode("key").getString(""),"\n"
         );
     }
@@ -270,7 +278,7 @@ public class Plugin {
         sendValue(ServerWatcher.startActions,"\n");
     }
     private void heartbeat(){
-        sendValue(ServerWatcher.heartbeat,"\n");
+        if(proc!=null && proc.isAlive()) sendValue(ServerWatcher.heartbeat,"\n");
     }
 
     @SafeVarargs
