@@ -9,19 +9,24 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Scanner;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.*;
 
 public class ServerWatcherChild {
     public static final String PERADACTYL_URL="REDACTED";
     Scanner scn;
-    final long maxTimer;
-    final long maxRebootWait;
-    final String serverId;
-    final String key;
-    Instant lastHeartBeat=null;
+    volatile long maxTimer;
+    volatile long maxRebootWait;
+    volatile String serverId;
+    volatile String key;
+
+    volatile boolean active = true;
+
+    ScheduledFuture<?> reactivateTask;
     Instant lastMessage=Instant.now();
+    volatile Instant lastHeartBeat=null;
     boolean serverRestartSent = false;
     Logger logger;
 
@@ -32,16 +37,58 @@ public class ServerWatcherChild {
         logger = new org.slf4j.simple.SimpleLoggerFactory().getLogger("ServerWatcherChild");
         logger.info("Creating Scanner");
         scn = new Scanner(System.in);
-        logger.info("Getting MaxTimer");
-        maxTimer = scn.nextLong();
-        logger.info("Getting MaxRebootTime");
-        maxRebootWait = scn.nextLong();
-        logger.info("Getting ServerID");
-        scn.skip(" ");
-        serverId = scn.nextLine();
-        logger.info("Getting API-Key");
-        key = scn.nextLine();
-        logger.info("Done With Init.");
+    }
+    private void handleAction(String l){
+        if(l.equals(ServerWatcher.heartbeat)){
+            lastHeartBeat=Instant.now();
+            logger.debug("Received Heartbeat");
+        } else if (l.equals(ServerWatcher.stopActions)) {
+            long seconds = scn.nextLong();
+            scn.skip(" ");
+            long nanos = scn.nextLong();
+            scn.nextLine();//discard the rest of this line
+            if (seconds>0 || nanos>0){
+                Duration d = Duration.ofSeconds(seconds,nanos);
+                final long value;
+                final TimeUnit unit;
+                {
+                    long value1;
+                    TimeUnit unit1;
+                    try{
+                        value1 = d.toMillis();
+                        unit1 = TimeUnit.MILLISECONDS;
+                    }catch (ArithmeticException e){
+                        value1 = d.getSeconds();
+                        unit1 = TimeUnit.SECONDS;
+                    }
+                    unit = unit1;
+                    value = value1;
+                }
+                reactivateTask=Executors.newSingleThreadScheduledExecutor().schedule(this::reactivate,value,unit);
+                active=false;
+                logger.warn("Deactivated DeadLockDetector for "+value+unit.toString().toLowerCase()+".");
+            }
+        } else if (l.equals(ServerWatcher.config)) {
+            logger.info("Getting MaxTimer");
+            maxTimer = scn.nextLong();
+            logger.info("Getting MaxRebootTime");
+            maxRebootWait = scn.nextLong();
+            logger.info("Getting ServerID");
+            scn.skip(" ");
+            serverId = scn.nextLine();
+            logger.info("Getting API-Key");
+            key = scn.nextLine();
+            logger.info("Done With Init.");
+        } else if (l.equals(ServerWatcher.startActions)) {
+            if (reactivateTask!=null) reactivateTask.cancel(true);
+            reactivate();
+        } else logger.error("Non-recognised Message: '"+l+"'");
+    }
+    private void reactivate(){
+        reactivateTask=null;
+        active=true;
+        logger.info("Reactivating DeadLockDetector, because timeout has passed. Deleting last Heartbeat info, to avoid restarting the server instantly if it is lagging badly.");
+        lastHeartBeat=null;
     }
     private void run(){
         logger.info("Created ServerWatcherChild");
@@ -50,18 +97,14 @@ public class ServerWatcherChild {
             //noinspection InfiniteLoopStatement
             while (true){
                 String l = scn.nextLine();
-                if (l.equals(ServerWatcher.heartbeat)){
-                    lastHeartBeat=Instant.now();
-                    logger.debug("Received Heartbeat");
-                }
-                else logger.error("Non-recognised Message: '"+l+"'");
+                handleAction(l);
             }
         });
         logger.info("Started Heartbeat watcher");
         logger.info("Going into ServerWatching mode");
         while (true){
-            if (lastHeartBeat==null)continue;
-            if (Instant.now().isAfter(lastHeartBeat.plusSeconds(maxTimer + maxRebootWait))) {
+            if (lastHeartBeat==null) continue;
+            else if (active && Instant.now().isAfter(lastHeartBeat.plusSeconds(maxTimer + maxRebootWait))) {
                 final long time = (Instant.now().getEpochSecond() - lastHeartBeat.getEpochSecond());
                 logger.error("Server Thread has not been setting the timer for " + time + "s." +
                         (serverRestartSent ? "Server Reboot request was sent already. " : "Server Reboot request was not sent. Sending") +
@@ -77,7 +120,7 @@ public class ServerWatcherChild {
                 power(Actions.Kill);
                 logger.error("Server should be dead!");
                 return;
-            } else if (Instant.now().isAfter(lastHeartBeat.plusSeconds(maxTimer))) {
+            } else if (active && Instant.now().isAfter(lastHeartBeat.plusSeconds(maxTimer))) {
                 if (!serverRestartSent) {
                     serverRestartSent = true;
                     power(Actions.Restart);
@@ -93,7 +136,8 @@ public class ServerWatcherChild {
             } else if (Instant.now().isAfter(lastHeartBeat.plusSeconds(5))) {
                 if (Instant.now().isAfter(lastMessage.plusMillis(900))) {
                     final long time = (Instant.now().getEpochSecond() - lastHeartBeat.getEpochSecond());
-                    logger.warn("Server Thread has not been setting the timer for " + time + "s. ");
+                    logger.warn("Server Thread has not been setting the timer for " + time + "s. "+
+                            (active?"":"No action will be taken!"));
                     lastMessage = Instant.now();
                 }
             }
@@ -115,6 +159,7 @@ public class ServerWatcherChild {
     }
 
     private void action(@NonNull String api,@NonNull String requestMethod,String data){
+        InputStream error=null;
         try{
             URL url = new URL(PERADACTYL_URL+api);
             HttpURLConnection con = (HttpURLConnection)url.openConnection();
@@ -125,6 +170,7 @@ public class ServerWatcherChild {
             con.setFixedLengthStreamingMode(data.length());
             con.setDoOutput(true);
             con.setDoInput(true);
+            error=con.getErrorStream();
             //Data
             Writer ods = new OutputStreamWriter(con.getOutputStream());
             ods.write(data,0,data.length());
@@ -138,6 +184,10 @@ public class ServerWatcherChild {
             throw new RuntimeException(mue);
         } catch (IOException e){
             logger.error("Tried to send action to Pterodactyl at '"+PERADACTYL_URL+api+"'. There was an error:",e);
+            if(error!=null){
+                Scanner scn = new Scanner(error);
+                while (scn.hasNextLine()) System.err.println(scn.nextLine());
+            }
         }
     }
 }

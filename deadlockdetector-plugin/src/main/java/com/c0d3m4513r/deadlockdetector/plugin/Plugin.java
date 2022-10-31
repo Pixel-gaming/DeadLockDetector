@@ -3,6 +3,7 @@ package com.c0d3m4513r.deadlockdetector.plugin;
 import com.c0d3m4513r.deadlockdetector.api.ServerWatcher;
 import com.google.inject.Inject;
 import lombok.NonNull;
+import lombok.val;
 import ninja.leaping.configurate.ConfigurationNode;
 import ninja.leaping.configurate.yaml.YAMLConfigurationLoader;
 import org.slf4j.Logger;
@@ -20,10 +21,14 @@ import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.text.Text;
+import org.spongepowered.api.util.Tuple;
 
 import java.io.*;
 import java.nio.file.Path;
 import java.security.CodeSource;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicLong;
@@ -127,67 +132,98 @@ public class Plugin {
         long newRebootWait = root.getNode("restartWait").getLong();
         long oldRebootWait = restartWait.getAndSet(newRebootWait);
 
-        src.sendMessage(Text.of("Timer has been reset. "));
         if (newMaxTimer != oldMaxTimer)
             src.sendMessage(Text.of("The Maximum timer value has changed from " + oldMaxTimer + " to " + newMaxTimer + "."));
         if (oldRebootWait != newRebootWait)
             src.sendMessage(Text.of("The Reboot Wait value has changed from " + oldRebootWait + " to " + newRebootWait + "."));
+        if(proc!=null && proc.isAlive()) sendConfig();
         logger.info("Reloaded Config. Issued by " + src.getIdentifier());
+        src.sendMessage(Text.of("Realoaded Config."+
+                ((proc!=null && proc.isAlive())?" Also sent a update to the Watcher.":"")
+        ));
     }
 
     @Listener
     public void Init(GameInitializationEvent event) {
         logger.info("[DeadlockDetector] Init start");
-//        CommandSpec reload = CommandSpec.builder().executor((src, args) -> {
-//            heartbeat();
-//            if (src.hasPermission("deadlockdetector.reload")) {
-//                try {
-//                    loadConfig(src);
-//                    return CommandResult.successCount(2);
-//                } catch (IOException e) {
-//                    throw new CommandException(Text.of("Failed to load config"), e);
-//                }
-//            }
-//            return CommandResult.success();
-//        }).build();
-//        CommandSpec debug = CommandSpec.builder().executor(((src, args) -> {
-//            logger.info("Debug method. Setting timer to 1 above maxTimer");
-//            timer.set(maxTimer.get()+1);
-//            Plugin.debug.set(true);
-//            return CommandResult.success();
-//        })).build();
-//        CommandSpec sleep = CommandSpec.builder().executor((src, args) -> {
-//                        Sponge.getScheduler().createTaskBuilder().execute(
-//                                ()->{
-//                                    try {
-//                                    Thread.sleep((Long) args.getOne(Text.of("time")).orElse(0L));
-//                                        } catch (InterruptedException e) {
-//                                        //throw new CommandException(Text.of("exception"),e);
-//                                    }
-//
-//                                }
-//                        ).submit(this);
-//                        return CommandResult.success();
+        CommandSpec reload = CommandSpec.builder().executor((src, args) -> {
+            heartbeat();
+            if (src.hasPermission("deadlockdetector.reload")) {
+                try {
+                    loadConfig(src);
+                    return CommandResult.successCount(2);
+                } catch (IOException e) {
+                    throw new CommandException(Text.of("Failed to load config"), e);
+                }
+            }
+            return CommandResult.success();
+        }).build();
+//        CommandSpec sleep = CommandSpec.builder()
+//                .arguments(GenericArguments.duration(Text.of("duration")))
+//                .executor((src, args) -> {
+//                    try {
+//                        Duration d = (Duration) args.getOne(Text.of("duration")).orElse(Duration.of(0, ChronoUnit.SECONDS));
+//                        Thread.sleep(d.toMillis());
+//                        } catch (InterruptedException|ClassCastException e) {
+//                        throw new CommandException(Text.of("exception"),e);
+//                    }
+//                    return CommandResult.success();
 //                })
-//                .arguments(GenericArguments.longNum(Text.of("time")))
+//                .permission("deadlockdetector.sleep")
 //                .build();
-//        Sponge.getCommandManager().register(this,
-//                CommandSpec.builder()
-//                        .child(reload, "reload")
+        CommandSpec stop = CommandSpec.builder()
+                .arguments(GenericArguments.duration(Text.of("duration")))
+                .executor((src, args) -> {
+                    try {
+                        Duration d = (Duration) args.getOne(Text.of("duration")).orElse(Duration.of(0, ChronoUnit.SECONDS));
+                        stopAction(d);
+                        src.sendMessage(Text.of("Send a request to not take any action in the next "+d.getSeconds()+"s"+d.getNano()+"ns"));
+                    } catch (ClassCastException e) {
+                        throw new CommandException(Text.of("exception"),e);
+                    }
+                    return CommandResult.success();
+                })
+                .permission("deadlockdetector.stop")
+                .build();
+        CommandSpec start = CommandSpec.builder()
+                .executor((src, args) -> {
+                    startAction();
+                    src.sendMessage(Text.of("Send a request to reactivate the DeadLockDetector"));
+                    return CommandResult.success();
+                })
+                .permission("deadlockdetector.start")
+                .build();
+        Sponge.getCommandManager().register(this,
+                CommandSpec.builder()
+                        .child(reload, "reload")
 //                        .child(sleep,"sleep")
-//                        .child(debug,"debug")
-//                        .executor((source, args) -> {
-//                            logger.info("Manually reset timer. Issued by " + source.getIdentifier());
-//                            heartbeat();
-//                            return CommandResult.success();
-//                        })
-//                        .build(),
-//                "deadlockdetector");
+                        .child(stop,"stop")
+                        .child(start,"start")
+                        .executor((source, args) -> {
+                            logger.info("Manually reset timer. Issued by " + source.getIdentifier());
+                            heartbeat();
+                            return CommandResult.success();
+                        })
+                        .build(),
+                "deadlockdetector","dld");
         logger.info("[DeadlockDetector] Init end");
     }
 
     @Listener
     public void start(GameStartedServerEvent start) {
+        startProcess();
+        sendConfig();
+        Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-SR-1t-Heartbeat").intervalTicks(1).delayTicks(0)
+                .execute(() -> {
+                    Sponge.getScheduler().createTaskBuilder().async().execute(this::heartbeat).submit(this);
+                }).submit(this);
+        logger.info("Started Threads");
+    }
+    private void startProcess(){
+        if (proc!=null && proc.isAlive()){
+            if(o==null) o=new OutputStreamWriter(proc.getOutputStream());
+            return;
+        }
         try {
             CodeSource codeSource = Plugin.class.getProtectionDomain().getCodeSource();
             String jarFile = codeSource
@@ -207,53 +243,49 @@ public class Plugin {
                     .redirectError(ProcessBuilder.Redirect.INHERIT)
                     .redirectInput(ProcessBuilder.Redirect.PIPE)
                     .start();
-            o = new OutputStreamWriter(proc.getOutputStream());
-            o.write(maxTimer.longValue()+" ");
-            o.write(restartWait.get()+" ");
-            o.write(root.getNode("id").getString("")+"\n");
-            o.write(root.getNode("key").getString("")+"\n");
-            o.flush();
+            o=new OutputStreamWriter(proc.getOutputStream());
             heartbeat();
 //            i = new Scanner(proc.getInputStream());
-            ForkJoinPool.commonPool().execute(()->{
-                Scanner sce = new Scanner(proc.getErrorStream());
-                Scanner scw = new Scanner(proc.getInputStream());
-                //noinspection InfiniteLoopStatement
-                while(true){
-                    if (sce.hasNextLine()) {
-                        String l = sce.nextLine();
-                        if (!l.isEmpty())
-                            logger.error(l);
-                    }
-                    if (scw.hasNextLine()){
-                        String l = scw.nextLine();
-                        if (!l.isEmpty())
-                            logger.warn(l);
-                    }
-                    try{
-                        //noinspection BusyWait
-                        Thread.sleep(10);
-                    }catch (InterruptedException ignored){}
-                }
-            });
         } catch (Exception e) {
             logger.warn("Process exception:",e);
         }
-        Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-SR-1t-Heartbeat").intervalTicks(1).delayTicks(0)
-                .execute(() -> {
-                    Sponge.getScheduler().createTaskBuilder().async().execute(this::heartbeat).submit(this);
-                }).submit(this);
-        logger.info("Started Threads");
+    }
+    private void sendConfig(){
+        startProcess();
+        sendValue(
+                ServerWatcher.config,"\n",
+                Long.toString(maxTimer.longValue())," ",
+                Long.toString(restartWait.get())," ",
+                root.getNode("id").getString(""),"\n",
+                root.getNode("key").getString(""),"\n"
+        );
+    }
+    private void stopAction(Duration timeout){
+        sendValue(ServerWatcher.stopActions,"\n",
+                Long.toString(timeout.getSeconds())," ",
+                Long.toString(timeout.getNano()),"\n"
+        );
+    }
+    private void startAction(){
+        sendValue(ServerWatcher.startActions,"\n");
+    }
+    private void heartbeat(){
+        sendValue(ServerWatcher.heartbeat,"\n");
     }
 
-    private void heartbeat(){
+    @SafeVarargs
+    private final void sendValue(String... strings){
+        if(o==null) startProcess();
         try {
-            o.write(ServerWatcher.heartbeat+"\n");
+            for(val s : strings){
+                o.write(s);
+            }
             o.flush();
         }catch (IOException e){
-            logger.warn("error during heatbeat: ",e);
+            logger.warn("error whilst sending value: ",e);
         }
     }
+
 //    private void handleOut(){
 //        while (i.hasNext()){
 //            String l = i.nextLine();
