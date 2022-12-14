@@ -21,18 +21,13 @@ import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.text.Text;
-import org.spongepowered.api.util.Tuple;
 
 import java.io.*;
 import java.nio.file.Path;
 import java.security.CodeSource;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.Collections;
 import java.util.Optional;
-import java.util.Scanner;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.*;
 
 @org.spongepowered.api.plugin.Plugin(id = "deadlockdetector", name = "DeadlockDetector")
 public class Plugin {
@@ -42,17 +37,12 @@ public class Plugin {
     private Path configDir;
     public static final boolean DEVELOPMENT = false;
     private static final long defaultMaxTimer = Long.MAX_VALUE - 1;
-//    private static final AtomicBoolean debug = new AtomicBoolean(false);
-    private static final AtomicLong restartWait = new AtomicLong(defaultMaxTimer);
-    private static boolean startOnServerStart;
-//    private static final AtomicBoolean serverAlreadyStopping = new AtomicBoolean(false);
-//    private static volatile Instant lastTick = null;
+    private long restartWait = defaultMaxTimer;
+    private long maxTimer = defaultMaxTimer;
+    private boolean startOnServerStart;
+
     private static Process proc;
     private static Writer o;
-//    private static Scanner i;
-//    private static Instant lastAsyncExec = null;
-    private static final AtomicLong maxTimer = new AtomicLong(defaultMaxTimer);
-//    private static final ScheduledExecutorService pool = Executors.newSingleThreadScheduledExecutor(new DeamonThreadFactory());
 
     @NonNull
     @Inject(optional = true)
@@ -67,13 +57,14 @@ public class Plugin {
 
     @Inject
     public Plugin(@NonNull PluginContainer container, @NonNull final Logger logger) throws IOException {
+        assertNotDevelopment();
         logger.info("[DeadlockDetector] Construct start");
         //Init config stuff
         if (configDir == null) {
             logger.warn("[DeadlockDetector] Manually getting config-dir from sponge, because the Injector did not inject the config dir");
             configDir = Sponge.getConfigManager().getPluginConfig(container).getDirectory();
         }
-        configDir.toFile().mkdirs();
+        if (configDir.toFile().mkdirs()) logger.info("Created configuration Directory for DeadLockDetector.");
         if (configFile == null) {
             logger.warn("[DeadlockDetector] Manually constructing config-file, because the Injector did not inject the config dir");
             configFile = configDir.resolve("config.yml");
@@ -121,6 +112,7 @@ public class Plugin {
 
     @Listener
     public void PreInit(GamePreInitializationEvent event) throws IOException {
+        assertNotDevelopment();
         logger.info("[DeadlockDetector] PreInit start");
         loadConfig(Sponge.getServer().getConsole());
         logger.info("[DeadlockDetector] PreInit end");
@@ -129,17 +121,21 @@ public class Plugin {
     private void loadConfig(CommandSource src) throws IOException {
         root = configurationLoader.load();
         long newMaxTimer = root.getNode("timeout").getLong();
-        long oldMaxTimer = maxTimer.getAndSet(newMaxTimer);
-
         long newRebootWait = root.getNode("restartWait").getLong();
-        long oldRebootWait = restartWait.getAndSet(newRebootWait);
+        boolean newStartOnServerStart = root.getNode("startOnServerStart").getBoolean(true);
 
-        startOnServerStart = root.getNode("startOnServerStart").getBoolean(true);
-
-        if (newMaxTimer != oldMaxTimer)
-            src.sendMessage(Text.of("The Maximum timer value has changed from " + oldMaxTimer + " to " + newMaxTimer + "."));
-        if (oldRebootWait != newRebootWait)
-            src.sendMessage(Text.of("The Reboot Wait value has changed from " + oldRebootWait + " to " + newRebootWait + "."));
+        if (newMaxTimer != maxTimer){
+            src.sendMessage(Text.of("The 'timeout' value has changed from " + maxTimer + " to " + newMaxTimer + "."));
+            maxTimer = newMaxTimer;
+        }
+        if (newRebootWait != restartWait){
+            src.sendMessage(Text.of("The 'restartWait' value has changed from " + restartWait + " to " + newRebootWait + "."));
+            restartWait = newRebootWait;
+        }
+        if (newStartOnServerStart != startOnServerStart){
+            src.sendMessage(Text.of("The 'startOnServerStart' value has changed from " + startOnServerStart + " to " + newStartOnServerStart + "."));
+            startOnServerStart = newStartOnServerStart;
+        }
         if(proc!=null && proc.isAlive()) sendConfig();
         logger.info("Reloaded Config. Issued by " + src.getIdentifier());
         src.sendMessage(Text.of("Realoaded Config."+
@@ -149,6 +145,7 @@ public class Plugin {
 
     @Listener
     public void Init(GameInitializationEvent event) {
+        assertNotDevelopment();
         logger.info("[DeadlockDetector] Init start");
         CommandSpec reload = CommandSpec.builder().executor((src, args) -> {
             heartbeat();
@@ -221,14 +218,22 @@ public class Plugin {
 
     @Listener
     public void start(GameStartedServerEvent start) {
+        assertNotDevelopment();
         if(startOnServerStart){
             startProcess();
             sendConfig();
         }
-        Sponge.getScheduler().createTaskBuilder().name("DetectDeadlocks-SR-1t-Heartbeat").intervalTicks(1).delayTicks(0)
-                .execute(() -> {
-                    Sponge.getScheduler().createTaskBuilder().async().execute(this::heartbeat).submit(this);
-                }).submit(this);
+        Sponge.getScheduler()
+                .createTaskBuilder()
+                .name("DetectDeadlocks-SR-1t-Heartbeat")
+                .intervalTicks(1)
+                .delayTicks(0)
+                .execute(() -> Sponge.getScheduler()
+                        .createTaskBuilder()
+                        .async()
+                        .execute(this::heartbeat)
+                        .submit(this))
+                .submit(this);
         logger.info("Started Threads");
     }
     private void startProcess(){
@@ -273,8 +278,8 @@ public class Plugin {
         logger.info("Sending Config to Observer Process.");
         sendValue(
                 ServerWatcher.config,"\n",
-                Long.toString(maxTimer.longValue())," ",
-                Long.toString(restartWait.get())," ",
+                Long.toString(maxTimer)," ",
+                Long.toString(restartWait)," ",
                 System.getenv("P_SERVER_UUID"),"\n",
                 root.getNode("panel-url").getString(""), "\n",
                 root.getNode("key").getString(""),"\n"
