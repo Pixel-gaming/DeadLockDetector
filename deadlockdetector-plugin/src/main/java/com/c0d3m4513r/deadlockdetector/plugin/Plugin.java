@@ -40,7 +40,7 @@ public class Plugin {
     @Inject(optional = true)
     @ConfigDir(sharedRoot = false)
     private Path configDir;
-
+    public static final boolean DEVELOPMENT = false;
     private static final long defaultMaxTimer = Long.MAX_VALUE - 1;
 //    private static final AtomicBoolean debug = new AtomicBoolean(false);
     private static final AtomicLong restartWait = new AtomicLong(defaultMaxTimer);
@@ -60,7 +60,7 @@ public class Plugin {
     private Path configFile;
 
     @NonNull
-    private YAMLConfigurationLoader configurationLoader;
+    private final YAMLConfigurationLoader configurationLoader;
     private ConfigurationNode root;
     @NonNull
     private final Logger logger;
@@ -162,19 +162,6 @@ public class Plugin {
             }
             return CommandResult.success();
         }).build();
-//        CommandSpec sleep = CommandSpec.builder()
-//                .arguments(GenericArguments.duration(Text.of("duration")))
-//                .executor((src, args) -> {
-//                    try {
-//                        Duration d = (Duration) args.getOne(Text.of("duration")).orElse(Duration.of(0, ChronoUnit.SECONDS));
-//                        Thread.sleep(d.toMillis());
-//                        } catch (InterruptedException|ClassCastException e) {
-//                        throw new CommandException(Text.of("exception"),e);
-//                    }
-//                    return CommandResult.success();
-//                })
-//                .permission("deadlockdetector.sleep")
-//                .build();
         CommandSpec stop = CommandSpec.builder()
                 .arguments(GenericArguments.duration(Text.of("duration")))
                 .executor((src, args) -> {
@@ -197,19 +184,38 @@ public class Plugin {
                 })
                 .permission("deadlockdetector.start")
                 .build();
-        Sponge.getCommandManager().register(this,
-                CommandSpec.builder()
+        CommandSpec.Builder builder = CommandSpec.builder();
+        if (DEVELOPMENT){
+            CommandSpec sleep = CommandSpec.builder()
+                    .arguments(GenericArguments.duration(Text.of("duration")))
+                    .executor((src, args) -> {
+                        try {
+                            Duration d = (Duration) args.getOne(Text.of("duration")).orElse(Duration.of(0, ChronoUnit.SECONDS));
+                            Thread.sleep(d.toMillis());
+                            } catch (InterruptedException|ClassCastException e) {
+                            throw new CommandException(Text.of("exception"),e);
+                        }
+                        return CommandResult.success();
+                    })
+                    .permission("deadlockdetector.sleep")
+                    .build();
+            builder.child(sleep, "sleep");
+        }
+        Sponge.getCommandManager().register(
+                this,
+                builder
                         .child(reload, "reload")
-//                        .child(sleep,"sleep")
-                        .child(stop,"stop")
-                        .child(start,"start")
+                        .child(stop, "stop")
+                        .child(start, "start")
                         .executor((source, args) -> {
                             logger.info("Manually reset timer. Issued by " + source.getIdentifier());
                             heartbeat();
                             return CommandResult.success();
                         })
                         .build(),
-                "deadlockdetector","dld");
+                "deadlockdetector",
+                "dld");
+
         logger.info("[DeadlockDetector] Init end");
     }
 
@@ -231,16 +237,19 @@ public class Plugin {
             return;
         }
         try {
+            logger.info("Getting current file path");
             CodeSource codeSource = Plugin.class.getProtectionDomain().getCodeSource();
+            logger.info("Converting current file path to a String");
             String jarFile = codeSource
                     .getLocation()
                     .getPath();
+            logger.info("Cleaning up the file path, to only point to the jar of the plugin.");
             jarFile=jarFile.substring(0,jarFile.indexOf('!')).replace("file:","");
+            logger.info("Getting the Java-Instance, that executes the server.");
             String java = System.getProperties().getProperty("java.home") + File.separator + "bin" + File.separator + "java"+(System.getProperty("os.name").startsWith("Win")?".exe":"");
-//            logger.error("File: "+jarFile);
-//            logger.error("Java: "+java);
-//            java=new File(java).getPath();
-//            logger.error("Java normalized: "+java);
+            logger.info("File location is: '"+jarFile+"'.");
+            logger.info("Java executable is: '"+java+"'.");
+            logger.info("Starting a new Thread to Observe the Server.");
 
             proc=new ProcessBuilder(new File(java).getPath(),
                     "-jar",
@@ -249,16 +258,19 @@ public class Plugin {
                     .redirectError(ProcessBuilder.Redirect.INHERIT)
                     .redirectInput(ProcessBuilder.Redirect.PIPE)
                     .start();
+
+            logger.info("Thread started successfully. Getting it's output stream now.");
             o=new OutputStreamWriter(proc.getOutputStream());
             sendConfig();
             heartbeat();
-//            i = new Scanner(proc.getInputStream());
         } catch (Exception e) {
             logger.warn("Process exception:",e);
         }
     }
     private void sendConfig(){
         if(o==null || proc==null || !proc.isAlive()) startProcess();
+
+        logger.info("Sending Config to Observer Process.");
         sendValue(
                 ServerWatcher.config,"\n",
                 Long.toString(maxTimer.longValue())," ",
@@ -267,22 +279,25 @@ public class Plugin {
                 root.getNode("panel-url").getString(""), "\n",
                 root.getNode("key").getString(""),"\n"
         );
+        logger.info("Config Send has completed.");
     }
     private void stopAction(Duration timeout){
+        logger.info("DeadLockDetector was instructed to not care about the server's state in the next "+timeout.toString()+".");
         sendValue(ServerWatcher.stopActions,"\n",
                 Long.toString(timeout.getSeconds())," ",
                 Long.toString(timeout.getNano()),"\n"
         );
     }
     private void startAction(){
+        logger.info("DeadLockDetector was instructed to start caring about the server's state.");
         sendValue(ServerWatcher.startActions,"\n");
     }
     private void heartbeat(){
+        //no log here. This is a hot path, and would spam console.
         if(proc!=null && proc.isAlive()) sendValue(ServerWatcher.heartbeat,"\n");
     }
 
-    @SafeVarargs
-    private final void sendValue(String... strings){
+    private void sendValue(String... strings){
         if(o==null) startProcess();
         try {
             for(val s : strings){
@@ -294,96 +309,9 @@ public class Plugin {
         }
     }
 
-//    private void handleOut(){
-//        while (i.hasNext()){
-//            String l = i.nextLine();
-//            if (l.equals(ServerWatcher.shutdown)) shutdown();
-//            else if (l.equals(ServerWatcher.crash)) crash();
-//        }
-//    }
-//    private void shutdown(){
-//        if (!serverAlreadyStopping.get()) {
-//            serverAlreadyStopping.set(true);
-//            Sponge.getServer().shutdown(Text.of("Detected Deadlock. Restarting."));
-//            logger.error("Detected Deadlock. Restarting.");
-//        }
-//    }
-//    private static Unsafe getUnsafe() throws NoSuchFieldException, IllegalAccessException {
-//        Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
-//        theUnsafe.setAccessible(true);
-//        return (Unsafe) theUnsafe.get(null);
-//    }
-//
-//    private void crash() {
-//        //fml looks for these methods, and replaces them.
-//        //This will not work on forge modded servers, which sadly we are.
-//        //BTW: there are multiple calls here, just because the calls are not supposed to return.
-//        //If they do, something has gone not as expected.
-//        logger.error("It has been determined, that the server has DEADLOCKED. TERMINATING SERVER, THIS PROCESS, THIS JAVA INSTANCE AND THIS JVM!");
-//
-//        try {
-//            SecurityManager sm = new SecurityManager() {
-//                @Override
-//                public void checkExit(int status) {
-//                }
-//
-//                @Override
-//                public void checkPermission(Permission perm) {
-//                }
-//            };
-//            System.setSecurityManager(sm);
-//        } catch (Throwable e) {
-//            logger.info("Could not set a custom Security manager. ", e);
-//        }
-//
-//        try {
-//            System.exit(-1);
-//        } catch (Throwable e) {
-//            logger.info("System.exit threw:", e);
-//        }
-//        logger.error("System.exit returned.");
-//        try {
-//            Runtime.getRuntime().exit(-1);
-//        } catch (Throwable e) {
-//            logger.info("Runtime.getRuntime().exit:", e);
-//        }
-//        logger.error("Runtime.getRuntime().exit returned.");
-//        try {
-//            Runtime.getRuntime().halt(-1);
-//        } catch (Throwable e) {
-//            logger.info("Runtime.getRuntime().halt threw:", e);
-//        }
-//        logger.error("Runtime.getRuntime().halt returned.");
-//
-//        try {
-//            Class<?> clazz = ClassLoader.getSystemClassLoader().loadClass("java.lang.Shutdown");
-//            try {
-//                Method m = clazz.getDeclaredMethod("exit", int.class);
-//                m.setAccessible(true);
-//                m.invoke(null, -1);
-//            } catch (Throwable e) {
-//                logger.error("Cannot call Shutdown.exit. ", e);
-//            }
-//            try {
-//                Method m = clazz.getDeclaredMethod("halt", int.class);
-//                m.setAccessible(true);
-//                m.invoke(null, -1);
-//            } catch (Throwable e) {
-//                logger.error("Cannot call Shutdown.halt. ", e);
-//            }
-//        } catch (Throwable e) {
-//            logger.error("Cannot get Shutdown class. ", e);
-//        }
-//
-//        //This should produce some sort of segfault or something.
-//        //You usually are not supposed to get stuff from the first page.
-//        try {
-//            getUnsafe().getByte(0);
-//        } catch (Throwable e) {
-//            logger.info("getUnsafe().getByte(0) threw:", e);
-//        }
-//        logger.error("getUnsafe().getByte(0) returned.");
-//        logger.error("I do not have another way of crashing the jvm rn. This is the end.");
-//    }
-
+    private static void assertNotDevelopment(){
+        assert !DEVELOPMENT;
+        //If this throws, I should be in dev, and remove it.
+        //If this throws in Production, that means I'm an idiot and forgot to change the Development variable!
+    }
 }
