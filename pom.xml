@@ -20,7 +20,19 @@
         <module>deadlockdetector-api</module>
         <module>deadlockdetector-main</module>
         <module>deadlockdetector-plugin</module>
+        <module>API</module>
+        <module>PluginDef</module>
+        <module>sponge_v7</module>
+        <module>spigot_v112</module>
     </modules>
+
+    <build>
+        <filters>
+            <filter>
+                ../plugin.properties
+            </filter>
+        </filters>
+    </build>
 
     <!-- Define the repo here since multiple modules will be using it -->
     <repositories>

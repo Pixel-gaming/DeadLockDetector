@@ -4,7 +4,6 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.c0d3m4513r</groupId>
     <artifactId>DeadLockDetector-Main</artifactId>
     <version>0.0.1</version>
     <packaging>jar</packaging>
@@ -27,13 +26,6 @@
             <artifactId>slf4j-simple</artifactId>
             <version>2.0.3</version>
         </dependency>
-        <!--        <dependency>-->
-        <!--            <groupId>net.minecraftforge</groupId>-->
-        <!--            <artifactId>forge</artifactId>-->
-        <!--            <version>1.12.2-14.23.5.2860</version>-->
-        <!--            <type>pom</type>-->
-        <!--            <scope>compile</scope>-->
-        <!--        </dependency>-->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

@@ -1,0 +1,42 @@
+#After how many second without a tick should a reboot request be sent?
+timeout: 9223372036854775806
+#After a reboot request has been sent (so at least after timeout seconds) how many seconds should we wait for the reboot request to be processed.
+restartWait: 9223372036854775806
+#This is the pterodactyl URL, that requests are sent to.
+url: INSERT-Perodactyl-Url-HERE
+#This is the API-Token that is used in the requests.
+#Note: this MUST be a token from a user account (not an Admin/Application API key).
+#Note: the token SHOULD have access to the POWER/REBOOT and POWER/KILL Actions.
+#Note: you MAY restrict the token to only the public ip(may or may not be required. only tested with), and all private íp blocks.
+#Note: I recommend allowing at least the following ip's (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, ::1/128, fc00::/7, fe80::/10)
+key: INSERT-API-TOKEN-HERE
+#If this is false the plugin will still load and register commands.
+#The child process, that has all the logic for when the server gets restarted/killed, however will not start.
+#This is useful if the server is immediately so unresponsive, that this plugin would kill the server.
+startOnServerStart: true
+permissions:
+  #determines if the base command /deadlockdetector:deadlockdetector can even be executed
+  base: deadlockdetector.base
+  #determines if the user can reload the configuration
+  reload: deadlockdetector.reload
+  #determines if the user can use /dld stop
+  stop: deadlockdetector.stop
+  #determines if the user can use /dld start
+  start: deadlockdetector.start
+  #This is a DEBUG ONLY feature. It is gated behind a compile time `DEVELOPMENT` flag.
+  #If that flag is false the plugin will not start, because it is asserted that the flag NEEDS to be false.
+  #Also, if that flag is false the thing that handles this sub-command is not included.
+  #
+  #TLDR: This permission does nothing, and should NEVER be given out to ANYONE as it FREEZES the server.
+  #
+  #The command behind this permission will freeze the main server thread, for a period of time (which is passed as a parameter).
+  sleep: deadlockdetector.sleep
+translation:
+  reload: Reloads the Config of the Plugin.
+  stop: Stops any actions from being taken. This will essentially temporarily disable all functionality of the plugin, except some stdout only logs.
+  start: Makes the Plugins start caring about server freezes.
+  commands:
+    noPermission: The Action failed, or you did not have enough permissions.
+    requiredArgs: Some required Arguments were missing.
+    unrecognisedArgs: Some Arguments were unrecognised. The Action cannot continue.
+    error: There was an internal error whilst trying to execute the Command. Please refer to the usage again.
