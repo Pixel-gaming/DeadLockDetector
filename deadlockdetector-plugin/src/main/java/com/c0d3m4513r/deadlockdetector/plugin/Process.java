@@ -6,6 +6,7 @@ import com.c0d3m4513r.pluginapi.API;
 import com.c0d3m4513r.pluginapi.config.TimeEntry;
 import com.c0d3m4513r.pluginapi.config.iface.IConfigLoadableSaveable;
 import lombok.NoArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.val;
 
 import java.io.File;
@@ -35,12 +36,16 @@ public class Process implements IConfigLoadableSaveable {
                     .getLocation()
                     .getPath();
             API.getLogger().info("[DeadlockDetector] Cleaning up the file path, to only point to the jar of the plugin.");
-            jarFile=jarFile.substring(0,jarFile.indexOf('!')).replace("file:","");
+
+            int index = jarFile.indexOf('!');
+            if (index >= 0) jarFile=jarFile.substring(0, index);
+            jarFile = jarFile.replace("file:","");
+
             API.getLogger().info("[DeadlockDetector] Getting the Java-Instance, that executes the server.");
             String java = System.getProperties().getProperty("java.home") + File.separator + "bin" + File.separator + "java"+(System.getProperty("os.name").startsWith("Win")?".exe":"");
             API.getLogger().info("[DeadlockDetector] File location is: '"+jarFile+"'.");
             API.getLogger().info("[DeadlockDetector] Java executable is: '"+java+"'.");
-            API.getLogger().info("[DeadlockDetector] Starting a new Thread to Observe the Server.");
+            API.getLogger().info("[DeadlockDetector] Starting a new Process to Observe the Server.");
 
             proc=new ProcessBuilder(new File(java).getPath(),
                     "-jar",
@@ -99,7 +104,10 @@ public class Process implements IConfigLoadableSaveable {
     }
 
     private void sendValue(String... strings){
-        if(o==null || proc == null || proc.isAlive()) startProcess();
+        if(o==null || proc == null || proc.isAlive()){
+            if (!Config.Instance.getStartOnServerStart().getValue()) return;
+            startProcess();
+        }
         try {
             for(val s : strings){
                 o.write(s);

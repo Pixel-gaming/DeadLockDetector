@@ -110,7 +110,7 @@ public class ServerWatcherChild {
         logger.info("Going into ServerWatching mode");
         while (true){
             if (lastHeartBeat==null) continue;
-            else if (active && Instant.now().isAfter(lastHeartBeat.plusSeconds(maxTimer + maxRebootWait))) {
+            else if (lastHeartBeat !=null && active && Instant.now().isAfter(lastHeartBeat.plusSeconds(maxTimer + maxRebootWait))) {
                 final long time = (Instant.now().getEpochSecond() - lastHeartBeat.getEpochSecond());
                 logger.error("Server Thread has not been setting the timer for " + time + "s." +
                         (serverRestartSent ? "Server Reboot request was sent already. " : "Server Reboot request was not sent. Sending") +
@@ -126,7 +126,7 @@ public class ServerWatcherChild {
                 power(Actions.Kill);
                 logger.error("Server should be dead!");
                 return;
-            } else if (active && Instant.now().isAfter(lastHeartBeat.plusSeconds(maxTimer))) {
+            } else if (lastHeartBeat !=null && active && Instant.now().isAfter(lastHeartBeat.plusSeconds(maxTimer))) {
                 if (!serverRestartSent) {
                     serverRestartSent = true;
                     power(Actions.Restart);
@@ -139,7 +139,7 @@ public class ServerWatcherChild {
                             "Waiting " + (maxTimer+maxRebootWait - time) + "s more, until the server gets killed.");
                     lastMessage = Instant.now();
                 }
-            } else if (Instant.now().isAfter(lastHeartBeat.plusSeconds(5))) {
+            } else if (lastHeartBeat !=null && Instant.now().isAfter(lastHeartBeat.plusSeconds(5))) {
                 if (Instant.now().isAfter(lastMessage.plusMillis(900))) {
                     final long time = (Instant.now().getEpochSecond() - lastHeartBeat.getEpochSecond());
                     logger.warn("Server Thread has not been setting the timer for " + time + "s. "+

@@ -55,6 +55,7 @@ public class Main extends MainConfig {
     public void loadValue(){
         API.getLogger().info("[DeadlockDetector] Reloading Config.");
         Config.Instance.loadValue();
+        Process.PROCESS.loadValue();
         API.getLogger().info("[DeadlockDetector] Reloaded Config.");
     }
 
@@ -62,6 +63,7 @@ public class Main extends MainConfig {
     public void saveValue() {
         API.getLogger().info("[DeadlockDetector] Saving Config.");
         Config.Instance.saveValue();
+        Process.PROCESS.saveValue();
         API.getLogger().info("[DeadlockDetector] Saved Config.");
 
     }
@@ -78,6 +80,7 @@ public class Main extends MainConfig {
 
     public void onServerStart() {
         assertNotDevelopment();
+
         API.getLogger().info("OnServerStart event fired.");
         if(Config.Instance.getStartOnServerStart().getValue()){
             API.getLogger().info("OnServerStart, sending heartbeat and syncing config with process.");
@@ -88,7 +91,6 @@ public class Main extends MainConfig {
         API.getLogger().info("Starting heartbeat thread.");
         TaskBuilder.builder()
                 .name("DetectDeadlocks-SR-1t-Heartbeat")
-                //todo: fixing this at 50ms is not ideal.
                 .timer(1)
                 .executer(() -> TaskBuilder
                         .builder()
@@ -101,7 +103,15 @@ public class Main extends MainConfig {
 
     public static void assertNotDevelopment(){
         assert !DEVELOPMENT;
-        //If this throws, I should be in dev, and remove it.
-        //If this throws in Production, that means I'm an idiot and forgot to change the Development variable!
+        if (DEVELOPMENT){
+            throw new AssertionError();
+        }
     }
+    public static void assertDevelopment(){
+        assert DEVELOPMENT;
+        if (!DEVELOPMENT){
+            throw new AssertionError();
+        }
+    }
+
 }
