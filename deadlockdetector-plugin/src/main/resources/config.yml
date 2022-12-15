@@ -1,7 +1,7 @@
 #After how many second without a tick should a reboot request be sent?
-timeout: 9223372036854775806
+timeout: 300
 #After a reboot request has been sent (so at least after timeout seconds) how many seconds should we wait for the reboot request to be processed.
-restartWait: 9223372036854775806
+restartWait: 300
 #This is the pterodactyl URL, that requests are sent to.
 #e.g. https://panel.url.here.com
 url: INSERT-Perodactyl-Url-HERE
