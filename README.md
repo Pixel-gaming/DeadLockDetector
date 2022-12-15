@@ -36,6 +36,7 @@ If you cannot Restart and Kill servers, I cannot support your panel.
 If you want support and are willing to give me a test account and instance, feel free to create a new issue.
 Please include your Discord Username in your Message, as I might contact you for a test account if I determine it potentially possible to implement.
 (If you disabled direct DM's and we do not share any common servers, join [https://discord.gg/E54xzKhu6s](https://discord.gg/E54xzKhu6s) and allow DM's for that server, so I can message you.)
+
 Just because I messaged you however, does not mean that support for that panel is guaranteed.
 Every Panel and API is different, and there may be unexpected complications.
 
@@ -50,7 +51,7 @@ As this Project does not have an official Licence, it is considered as All Right
 To counteract any possible issues over Code Ownership, you agree to transfer ownership of your Code to the owner of this Repository.
 This ensures that we can actually set a License, when we have decided on one (because otherwise we need approval from everyone that has committed their code to this repository).
 
-## Informal License
+## License
 
 1. You may not redistribute the code in any way, shape or form, altered or not! GitHub Forks with the intent of making a Pull-Request are excluded from this rule.
 2. This includes using this project's code as a base for your new Project.
@@ -59,4 +60,5 @@ This ensures that we can actually set a License, when we have decided on one (be
 
 I know this is not a standard licence, but I have a hard time deciding on one.
 For now, I basically want to deter people from ripping off my project.
-The key takeaway from here should be, that you still can help this Plugin or Repository grow by contributing to its code, sharing its link, using the jars provided here and sharing the links to jars provided here.
+
+The key takeaway from here should be, that you still can help this Plugin or Repository grow by contributing to its code, sharing its link, using the jars provided here, sharing the links to jars provided here and contributing/helping with issues [and Discussions should I add them].
