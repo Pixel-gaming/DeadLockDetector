@@ -21,7 +21,7 @@ In some cases it is impossible to get my plugin to work, so I created an indepen
 ## Can I use the Plugin?
 
 If you use [Pterodactyl](https://pterodactyl.io/) as your Server Panel, yes!
-To get started check out [the config at](deadlockdetector-plugin/src/main/resources/config.yml), and [get the latest release](https://github.com/Pixel-gaming/DeadLockDetector/releases/latest).
+To get started check out [the config](deadlockdetector-plugin/src/main/resources/config.yml), and [get the latest release](https://github.com/Pixel-gaming/DeadLockDetector/releases/latest).
 For a new Installation you will want to change the following things (in order of importance):
 1. `url` and `key`. They give the Plugin authorisation to actually restart the server.
 2. `timeout`. This sets how many seconds must pass without any ticks, before the plugin sends a Restart action to Pterodactyl.
