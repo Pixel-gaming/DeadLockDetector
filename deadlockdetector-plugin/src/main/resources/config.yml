@@ -1,6 +1,7 @@
 #After how many second without a tick should a reboot request be sent?
 timeout: 300
-#After a reboot request has been sent (so at least after timeout seconds) how many seconds should we wait for the reboot request to be processed.
+#After a reboot request has been sent, how many seconds should we wait for the reboot request to be processed.
+#To clarify, the maximum amount of time that can pass between the last tick, and the server getting killed is 'timeout + restartWait'.
 restartWait: 300
 #This is the pterodactyl URL, that requests are sent to.
 #e.g. https://panel.url.here.com
