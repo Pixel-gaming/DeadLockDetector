@@ -78,10 +78,14 @@ public class Main extends MainConfig {
 
     public void onServerStart() {
         assertNotDevelopment();
+        API.getLogger().info("OnServerStart event fired.");
         if(Config.Instance.getStartOnServerStart().getValue()){
+            API.getLogger().info("OnServerStart, sending heartbeat and syncing config with process.");
+            Process.PROCESS.startAction();
             Process.PROCESS.heartbeat();
             Process.PROCESS.loadValue();
         }
+        API.getLogger().info("Starting heartbeat thread.");
         TaskBuilder.builder()
                 .name("DetectDeadlocks-SR-1t-Heartbeat")
                 //todo: fixing this at 50ms is not ideal.

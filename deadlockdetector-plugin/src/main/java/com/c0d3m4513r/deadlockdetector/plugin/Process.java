@@ -26,6 +26,7 @@ public class Process implements IConfigLoadableSaveable {
             if(o==null) o=new OutputStreamWriter(proc.getOutputStream());
             return;
         }
+        API.getLogger().info("Starting Process");
         try {
             API.getLogger().info("[DeadlockDetector] Getting current file path");
             CodeSource codeSource = Main.class.getProtectionDomain().getCodeSource();
@@ -98,7 +99,7 @@ public class Process implements IConfigLoadableSaveable {
     }
 
     private void sendValue(String... strings){
-        if(o==null) startProcess();
+        if(o==null || proc == null || proc.isAlive()) startProcess();
         try {
             for(val s : strings){
                 o.write(s);

@@ -2,7 +2,6 @@ package com.c0d3m4513r.deadlockdetector.plugin.commands;
 
 import com.c0d3m4513r.deadlockdetector.plugin.Main;
 import com.c0d3m4513r.deadlockdetector.plugin.Process;
-import com.c0d3m4513r.deadlockdetector.plugin.config.Config;
 import com.c0d3m4513r.deadlockdetector.plugin.config.ConfigStrings;
 import com.c0d3m4513r.deadlockdetector.plugin.config.PermissionConfig;
 import com.c0d3m4513r.pluginapi.API;
@@ -111,12 +110,15 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
         Optional<TimeEntry> time = tryGetRequiredTimeEntry(source, arguments.peek());
         if (!time.isPresent()) return API.getCommandResult().error();
         arguments.poll();
+
+        API.getLogger().info("Stopping DeadLockDetector.");
         Process.PROCESS.stopAction(time.get());
         source.sendMessage("Send a request to not take any action in the next "+time.get()+".");
         return API.getCommandResult().success();
     }
 
     public CommandResult start(CommandSource source, ArrayDeque<String> ignoredArguments) {
+        API.getLogger().info("Starting DeadLockDetector again.");
         Process.PROCESS.startAction();
         source.sendMessage("Send a request to reactivate the DeadLockDetector");
         return API.getCommandResult().success();
@@ -130,6 +132,7 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
         if (!time.isPresent()) return API.getCommandResult().error();
         arguments.poll();
 
+        API.getLogger().info("Sleeping now.");
         try {
             Thread.sleep(time.get().getMs());
         } catch (InterruptedException e) {
