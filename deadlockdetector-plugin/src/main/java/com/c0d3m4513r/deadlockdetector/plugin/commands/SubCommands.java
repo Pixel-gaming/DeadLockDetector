@@ -10,7 +10,6 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-@ToString
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public enum SubCommands {
     help(()-> PermissionConfig.Instance.getBase().getValue(), r->r::help),
