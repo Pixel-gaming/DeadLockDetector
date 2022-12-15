@@ -7,6 +7,11 @@ There are two parts of this system:
 That Process is called the `ServerWatcher`.
 It is responsible for actually detecting a stalled/frozen/Deadlocked server, by comparing the time between Heartbeat-Messages.
 
+## Why should I use an extra plugin, when minectaft has a Server Watchdog and `max-tick-rate` in server.properties
+
+This is closely related to the next section. In short, the Minecraft Server Watchdog is often not really helpful and doesn't detect these wierd events.
+This Plugin is focused on making sure a server stays in a working state without having to pay attention to the server.
+
 ## Why do you use a Separate Process?
 
 Anything less has proven for us to not work reliably.
@@ -35,7 +40,7 @@ If you cannot Restart and Kill servers, I cannot support your panel.
 
 If you want support and are willing to give me a test account and instance, feel free to create a new issue.
 Please include your Discord Username in your Message, as I might contact you for a test account if I determine it potentially possible to implement.
-(If you disabled direct DM's and we do not share any common servers, join [https://discord.gg/E54xzKhu6s](https://discord.gg/E54xzKhu6s) and allow DM's for that server, so I can message you.)
+(If you disabled direct DM's and we do not share any common servers, join [https://pixelgaming.co](https://pixelgaming.co) and allow DM's for that server, so I can message you.)
 
 Just because I messaged you however, does not mean that support for that panel is guaranteed.
 Every Panel and API is different, and there may be unexpected complications.
