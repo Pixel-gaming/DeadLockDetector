@@ -98,11 +98,13 @@ public class ServerWatcherChild {
         logger.info("Created ServerWatcherChild");
         ForkJoinPool.commonPool().execute(()->{
             logger.info("Hello from Heartbeat watcher");
-            //noinspection InfiniteLoopStatement
-            while (true){
-                String l = scn.nextLine();
-                handleAction(l);
-            }
+            try {
+                //noinspection InfiniteLoopStatement
+                while (true) {
+                    String l = scn.nextLine();
+                    handleAction(l);
+                }
+            }catch (NoSuchElementException ignored){}
         });
         logger.info("Started Heartbeat watcher");
         logger.info("Going into ServerWatching mode");
