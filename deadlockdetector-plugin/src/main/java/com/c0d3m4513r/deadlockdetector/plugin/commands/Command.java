@@ -152,7 +152,7 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
     }
 
     public CommandResult reload(CommandSource ignoredArguments, ArrayDeque<String> ignoredArguments1) {
-        Config.Instance.loadValue();
+        API.getConfig().loadValue();
         return API.getCommandResult().success();
     }
 }
