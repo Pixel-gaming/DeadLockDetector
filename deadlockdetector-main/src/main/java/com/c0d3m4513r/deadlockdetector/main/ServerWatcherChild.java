@@ -11,6 +11,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.concurrent.*;
 
@@ -78,6 +79,9 @@ public class ServerWatcherChild {
             serverId = scn.nextLine();
             logger.info("Getting API-Key");
             key = scn.nextLine();
+            logger.info("Getting Panel Url");
+            perodactylUrl = scn.nextLine().trim();
+            if (perodactylUrl.endsWith("/")) perodactylUrl = perodactylUrl.substring(0, perodactylUrl.lastIndexOf('/'));
             logger.info("Done With Init.");
         } else if (l.equals(ServerWatcher.startActions)) {
             if (reactivateTask!=null) reactivateTask.cancel(true);
@@ -155,10 +159,14 @@ public class ServerWatcherChild {
     }
 
     private void power(Actions action){
-        action("api/client/servers/"+serverId+"/power","POST","{\"signal\":\""+action.action+"\"}");
+        action("/api/client/servers/"+serverId+"/power","POST","{\"signal\":\""+action.action+"\"}");
     }
 
     private void action(@NonNull String api,@NonNull String requestMethod,String data){
+        if (perodactylUrl.isEmpty()){
+            logger.info("No panel url specified. Will not actually send a action.");
+            return;
+        }
         InputStream error=null;
         try{
             URL url = new URL(perodactylUrl +api);
