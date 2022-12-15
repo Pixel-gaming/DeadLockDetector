@@ -22,7 +22,7 @@ public class Config implements IConfigLoadableSaveable {
     @NonNull
     private ConfigEntry<String> apiKey = new ConfigEntry<>(new ClassValue<>("", String.class), "key");
     @NonNull
-    private ConfigEntry<String> panelUrl = new ConfigEntry<>(new ClassValue<>("", String.class), "panel-url");
+    private ConfigEntry<String> panelUrl = new ConfigEntry<>(new ClassValue<>("", String.class), "url");
 
     @Override
     public void loadValue(){
