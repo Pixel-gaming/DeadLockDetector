@@ -11,12 +11,11 @@ import lombok.*;
 
 public class Config implements IConfigLoadableSaveable {
     public static final Config Instance = new Config();
-    public static final long DEFAULT_MAX_TIMER = Long.MAX_VALUE - 1;
 
     @NonNull
-    private ConfigEntry<Long> restartWait = new ConfigEntry<>(new ClassValue<>(DEFAULT_MAX_TIMER, Long.class), "restartWait");
+    private ConfigEntry<Long> restartWait = new ConfigEntry<>(new ClassValue<>(300L, Long.class), "restartWait");
     @NonNull
-    private ConfigEntry<Long> timeout = new ConfigEntry<>(new ClassValue<>(DEFAULT_MAX_TIMER, Long.class), "timeout");
+    private ConfigEntry<Long> timeout = new ConfigEntry<>(new ClassValue<>(300L, Long.class), "timeout");
     @NonNull
     private ConfigEntry<Boolean> startOnServerStart = new ConfigEntry<>(new ClassValue<>(false, Boolean.class), "startOnServerStart");
     @NonNull
