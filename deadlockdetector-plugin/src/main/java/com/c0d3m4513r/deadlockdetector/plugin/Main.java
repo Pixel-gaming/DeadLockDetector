@@ -35,7 +35,9 @@ public class Main extends MainConfig {
     public void main() {
         assertNotDevelopment();
         new EventRegistrar(this::commandRegister,EventType.commandRegister, 1);
-        new EventRegistrar(this::onServerStart, EventType.load_complete, 1);
+        new EventRegistrar(()-> TaskBuilder.builder()
+                .executer(this::onServerStart)
+                .build(), EventType.load_complete, 1);
     }
 
     public Optional<String> getDefaultConfigContents() {
