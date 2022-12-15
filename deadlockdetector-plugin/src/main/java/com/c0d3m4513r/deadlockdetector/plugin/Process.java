@@ -67,8 +67,8 @@ public class Process implements IConfigLoadableSaveable {
                 Config.Instance.getTimeout().getValue().toString()," ",
                 Config.Instance.getRestartWait().getValue().toString()," ",
                 System.getenv("P_SERVER_UUID"),"\n",
-                Config.Instance.getPanelUrl().getValue(),"\n",
-                Config.Instance.getApiKey().getValue(), "\n"
+                Config.Instance.getApiKey().getValue(), "\n",
+                Config.Instance.getPanelUrl().getValue(),"\n"
         );
         API.getLogger().info("[DeadlockDetector] Config Send has completed.");
     }
