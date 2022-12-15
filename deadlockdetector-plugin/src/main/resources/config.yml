@@ -3,6 +3,7 @@ timeout: 9223372036854775806
 #After a reboot request has been sent (so at least after timeout seconds) how many seconds should we wait for the reboot request to be processed.
 restartWait: 9223372036854775806
 #This is the pterodactyl URL, that requests are sent to.
+#e.g. https://panel.url.here.com
 url: INSERT-Perodactyl-Url-HERE
 #This is the API-Token that is used in the requests.
 #Note: this MUST be a token from a user account (not an Admin/Application API key).
