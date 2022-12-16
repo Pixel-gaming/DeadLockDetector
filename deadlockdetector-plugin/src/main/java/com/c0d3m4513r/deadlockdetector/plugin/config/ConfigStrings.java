@@ -12,16 +12,19 @@ public class ConfigStrings implements IConfigLoadableSaveable {
     public static final ConfigStrings Instance = new ConfigStrings();
 
     @NonNull
-    private ConfigEntry<String> reload = new ConfigEntry<>(new ClassValue<>("Reloads the Config of the Plugin.", String.class), "translation.reload");
+    private ConfigEntry<String> base = new ConfigEntry<>(new ClassValue<>("This is the main command for managing server restarts.\n Arguments with <> are optional, whilst ones with [] are mandatory. \n - stands for the main command alias. By default /dld or /deadlockdetector", String.class), "translation.base");
 
     @NonNull
-    private ConfigEntry<String> stop = new ConfigEntry<>(new ClassValue<>("Stops any actions from being taken. This will essentially temporarily disable all functionality of the plugin, except some stdout only logs.", String.class), "translation.stop");
+    private ConfigEntry<String> reload = new ConfigEntry<>(new ClassValue<>("- reload - Reloads the Config of the Plugin.", String.class), "translation.reload");
 
     @NonNull
-    private ConfigEntry<String> start = new ConfigEntry<>(new ClassValue<>("Makes the Plugins start caring about server freezes.", String.class), "translation.start");
+    private ConfigEntry<String> stop = new ConfigEntry<>(new ClassValue<>("- stop [TimeEntry] - Stops any actions from being taken. This will essentially temporarily disable all functionality of the plugin, except some stdout only logs.", String.class), "translation.stop");
 
     @NonNull
-    private ConfigEntry<String> sleep = new ConfigEntry<>(new ClassValue<>("Makes the Server freeze. DEVELOPMENT ONLY. Just because you see this doesn't mean that the command will work.", String.class), "translation.sleep");
+    private ConfigEntry<String> start = new ConfigEntry<>(new ClassValue<>("- start - Makes the Plugins start caring about server freezes.", String.class), "translation.start");
+
+    @NonNull
+    private ConfigEntry<String> sleep = new ConfigEntry<>(new ClassValue<>("- sleep [TimeEntry] - Makes the Server freeze. DEVELOPMENT ONLY. Just because you see this doesn't mean that the command will work.", String.class), "translation.sleep");
 //--------------------------------------------------------------------------------------------------------------------
     @NonNull
     private ConfigEntry<String> noPermission = new ConfigEntry<>(
