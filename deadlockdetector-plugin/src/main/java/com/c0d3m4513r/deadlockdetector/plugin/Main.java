@@ -37,7 +37,7 @@ public class Main extends MainConfig {
         new EventRegistrar(this::commandRegister,EventType.commandRegister, 1);
         new EventRegistrar(()-> TaskBuilder.builder()
                 .executer(this::onServerStart)
-                .build(), EventType.load_complete, 1);
+                .build(), EventType.serverStarting, 1);
     }
 
     public Optional<String> getDefaultConfigContents() {
