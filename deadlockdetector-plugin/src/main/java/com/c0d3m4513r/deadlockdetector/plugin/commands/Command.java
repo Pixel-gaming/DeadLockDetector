@@ -30,6 +30,10 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
 
     @Override
     public CommandResult process(CommandSource source, String arguments) throws CommandException {
+        if (!source.hasPerm(PermissionConfig.Instance.getBase().getValue())){
+            source.sendMessage(ConfigStrings.Instance.getNoPermission().getValue());
+            return API.getCommandResult().error();
+        }
         API.getLogger().info("[DeadlockDetector] Manually reset timer. Issued by " + source.getIdentifier());
         Process.PROCESS.heartbeat();
 
