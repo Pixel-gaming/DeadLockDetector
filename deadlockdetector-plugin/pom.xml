@@ -106,7 +106,7 @@
                                     <pattern>com.c0d3m4513r</pattern>
                                     <shadedPattern>com.c0d3m4513r.shaded.deadlockdetector</shadedPattern>
                                     <excludes>
-                                        <exclude>com.c0d3m4513r.deadlockdetector.*</exclude>
+                                        <exclude>com.c0d3m4513r.deadlockdetector.**</exclude>
                                     </excludes>
                                 </relocation>
                             </relocations>

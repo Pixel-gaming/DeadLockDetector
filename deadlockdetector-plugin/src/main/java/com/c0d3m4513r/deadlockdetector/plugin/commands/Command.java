@@ -126,7 +126,7 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
 
     @SneakyThrows
     public CommandResult sleep(CommandSource source, ArrayDeque<String> arguments) {
-        Main.assertNotDevelopment();
+        if (!Main.DEVELOPMENT) return API.getCommandResult().error();
 
         Optional<TimeEntry> time = tryGetRequiredTimeEntry(source, arguments.peek());
         if (!time.isPresent()) return API.getCommandResult().error();
