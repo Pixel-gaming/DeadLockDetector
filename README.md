@@ -7,7 +7,9 @@ There are two parts of this system:
 That Process is called the `ServerWatcher`.
 It is responsible for actually detecting a stalled/frozen/Deadlocked server, by comparing the time between Heartbeat-Messages.
 
-## Why should I use an extra plugin, when minectaft has a Server Watchdog and `max-tick-rate` in server.properties
+The plugin is currently designed to work with SpongeApiv7 and Spigot version 1.12.
+
+## Why should I use an extra plugin, when minecraft has a Server Watchdog and `max-tick-rate` in server.properties
 
 This is closely related to the next section. In short, the Minecraft Server Watchdog is often not really helpful and doesn't detect these wierd events.
 This Plugin is focused on making sure a server stays in a working state without having to pay attention to the server.
