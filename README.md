@@ -34,6 +34,10 @@ For a new Installation you will want to change the following things (in order of
 2. `timeout`. This sets how many seconds must pass without any ticks, before the plugin sends a Restart action to Pterodactyl.
 3. `restartWait`. How many seconds must pass after `timeout`, before the KIll action is sent to Pterodactyl.
 
+## What are the commands for this plugin?
+
+See [the Command Usage](https://github.com/Pixel-gaming/DeadLockDetector/wiki/Command-Usage) in the wiki.
+
 ### I use panel XY for managing my Servers. Can you add support
 
 This will require investigation for every panel.
