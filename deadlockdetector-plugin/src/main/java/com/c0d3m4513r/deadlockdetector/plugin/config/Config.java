@@ -19,9 +19,9 @@ public class Config implements IConfigLoadableSaveable {
     @NonNull
     private ConfigEntry<Boolean> startOnServerStart = new ConfigEntry<>(new ClassValue<>(false, Boolean.class), "startOnServerStart");
     @NonNull
-    private ConfigEntry<String> apiKey = new ConfigEntry<>(new ClassValue<>("", String.class), "key");
+    private ConfigEntry<String> apiKey = new ConfigEntry<>(new ClassValue<>("INSERT-API-TOKEN-HERE", String.class), "key");
     @NonNull
-    private ConfigEntry<String> panelUrl = new ConfigEntry<>(new ClassValue<>("", String.class), "url");
+    private ConfigEntry<String> panelUrl = new ConfigEntry<>(new ClassValue<>("INSERT-Perodactyl-Url-HERE", String.class), "url");
 
     @Override
     public void loadValue(){

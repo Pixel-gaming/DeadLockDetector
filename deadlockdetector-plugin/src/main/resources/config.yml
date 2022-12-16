@@ -34,9 +34,14 @@ permissions:
   #The command behind this permission will freeze the main server thread, for a period of time (which is passed as a parameter).
   sleep: deadlockdetector.sleep
 translation:
-  reload: Reloads the Config of the Plugin.
-  stop: Stops any actions from being taken. This will essentially temporarily disable all functionality of the plugin, except some stdout only logs.
-  start: Makes the Plugins start caring about server freezes.
+  base: |+
+    This is the main command for managing server restarts.
+    Arguments with <> are optional, whilst ones with [] are mandatory. 
+    - stands for the main command alias. By default /dld or /deadlockdetector
+  reload: "- reload - Reloads the Config of the Plugin."
+  stop: "- stop [TimeEntry] - Stops any actions from being taken. This will essentially temporarily disable all functionality of the plugin, except some stdout only logs."
+  start: "- start - Makes the Plugins start caring about server freezes."
+  sleep: "- sleep [TimeEntry] - Makes the Server freeze. DEVELOPMENT ONLY. Just because you see this doesn't mean that the command will work."
   commands:
     noPermission: The Action failed, or you did not have enough permissions.
     requiredArgs: Some required Arguments were missing.

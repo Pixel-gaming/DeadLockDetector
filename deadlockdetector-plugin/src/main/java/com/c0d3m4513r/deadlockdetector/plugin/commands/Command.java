@@ -41,7 +41,7 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
                 source.sendMessage("No valid subcommand was found. ");
                 source.sendMessage(getUsage(source));
                 throw new CommandException("No valid subcommand was found. " + getUsage(source));
-            } else if (source.hasPerm(subcommand.perm.get())){
+            } else if (source.hasPerm(subcommand.perm.get()) && (subcommand.enabled == null || subcommand.enabled.getAsBoolean()) ){
                 return subcommand.function.apply(this).apply(source, args);
             } else {
                 throw new CommandException(ConfigStrings.Instance.getNoPermission().getValue());
@@ -54,6 +54,10 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
 
     public CommandResult help(CommandSource source, ArrayDeque<String> ignoredArguments){
         val sendHelp = Command.sendHelp.apply(source);
+        sendHelp.apply(
+                PermissionConfig.Instance.getBase().getValue(),
+                ConfigStrings.Instance.getBase().getValue()
+        );
         sendHelp.apply(
                 PermissionConfig.Instance.getStart().getValue(),
                 ConfigStrings.Instance.getStart().getValue()
@@ -101,6 +105,7 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
     public String getUsage(CommandSource source) {
         String subcommands = Arrays.stream(SubCommands.values())
                 .filter(sc -> source.hasPerm(sc.perm.get()))
+                .filter(sc -> sc.enabled == null || sc.enabled.getAsBoolean())
                 .map(SubCommands::toString)
                 .collect(Collectors.joining(","));
         return "Valid Subcommands are "+ subcommands +".";
