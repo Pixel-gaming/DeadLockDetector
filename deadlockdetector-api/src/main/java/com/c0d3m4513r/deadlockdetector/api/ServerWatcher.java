@@ -6,8 +6,4 @@ public interface ServerWatcher {
     String config="CONFIG";
     String stopActions="STOP";
     String startActions="START";
-
-
-    String shutdown="SHUTDOWN";
-    String crash="CRASH";
 }

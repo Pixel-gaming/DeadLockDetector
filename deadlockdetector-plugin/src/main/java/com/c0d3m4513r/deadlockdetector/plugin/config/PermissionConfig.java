@@ -4,6 +4,8 @@ import com.c0d3m4513r.deadlockdetector.plugin.commands.SubCommands;
 import com.c0d3m4513r.pluginapi.config.ClassValue;
 import com.c0d3m4513r.pluginapi.config.ConfigEntry.ConfigEntry;
 import com.c0d3m4513r.pluginapi.config.iface.IConfigLoadableSaveable;
+import com.c0d3m4513r.pluginapi.config.iface.Loadable;
+import com.c0d3m4513r.pluginapi.config.iface.Savable;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NonNull;
@@ -35,35 +37,27 @@ public class PermissionConfig implements IConfigLoadableSaveable {
     });
 
     @NonNull
+    @Loadable
+    @Savable
     private ConfigEntry<String> base = new ConfigEntry<>(new ClassValue<>("deadlockdetector.base", String.class), "permissions.base");
 
     @NonNull
+    @Loadable
+    @Savable
     private ConfigEntry<String> reload = new ConfigEntry<>(new ClassValue<>("deadlockdetector.reload", String.class), "permissions.reload");
 
     @NonNull
+    @Loadable
+    @Savable
     private ConfigEntry<String> stop = new ConfigEntry<>(new ClassValue<>("deadlockdetector.stop", String.class), "permissions.stop");
 
     @NonNull
+    @Loadable
+    @Savable
     private ConfigEntry<String> start = new ConfigEntry<>(new ClassValue<>("deadlockdetector.start", String.class), "permissions.start");
 
     @NonNull
+    @Loadable
+    @Savable
     private ConfigEntry<String> sleep = new ConfigEntry<>(new ClassValue<>("deadlockdetector.sleep", String.class), "permissions.sleep");
-
-    @Override
-    public void loadValue() {
-        base.loadValue();
-        reload.loadValue();
-        stop.loadValue();
-        start.loadValue();
-        sleep.loadValue();
-    }
-
-    @Override
-    public void saveValue() {
-        base.saveValue();
-        reload.saveValue();
-        stop.saveValue();
-        start.saveValue();
-        sleep.saveValue();
-    }
 }
