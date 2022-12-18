@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ServerWatcherChild {
     String perodactylUrl;
@@ -27,7 +28,7 @@ public class ServerWatcherChild {
 
     ScheduledFuture<?> reactivateTask;
     Instant lastMessage=Instant.now();
-    volatile Instant lastHeartBeat=null;
+    AtomicReference<Instant> lastHeartBeat = new AtomicReference<>(null);
     boolean serverRestartSent = false;
     Logger logger;
 
@@ -41,7 +42,7 @@ public class ServerWatcherChild {
     }
     private void handleAction(String l){
         if(l.equals(ServerWatcher.heartbeat)){
-            lastHeartBeat=Instant.now();
+            lastHeartBeat.set(Instant.now());
             logger.debug("Received Heartbeat");
         } else if (l.equals(ServerWatcher.stopActions)) {
             long seconds = scn.nextLong();
@@ -90,7 +91,7 @@ public class ServerWatcherChild {
     }
     private void reactivate(){
         reactivateTask=null;
-        lastHeartBeat=null;
+        lastHeartBeat.set(null);
         active=true;
         logger.info("Reactivating DeadLockDetector, because timeout has passed. Deleting last Heartbeat info, to avoid restarting the server instantly if it is lagging badly.");
     }
@@ -109,9 +110,10 @@ public class ServerWatcherChild {
         logger.info("Started Heartbeat watcher");
         logger.info("Going into ServerWatching mode");
         while (true){
-            if (lastHeartBeat==null) continue;
-            else if (lastHeartBeat !=null && active && Instant.now().isAfter(lastHeartBeat.plusSeconds(maxTimer + maxRebootWait))) {
-                final long time = (Instant.now().getEpochSecond() - lastHeartBeat.getEpochSecond());
+            Instant lastHeartBeatLocal = lastHeartBeat.get();
+            if (lastHeartBeatLocal==null) continue;
+            else if (active && Instant.now().isAfter(lastHeartBeatLocal.plusSeconds(maxTimer + maxRebootWait))) {
+                final long time = (Instant.now().getEpochSecond() - lastHeartBeatLocal.getEpochSecond());
                 logger.error("Server Thread has not been setting the timer for " + time + "s." +
                         (serverRestartSent ? "Server Reboot request was sent already. " : "Server Reboot request was not sent. Sending") +
                         "Killing the server");
@@ -126,22 +128,22 @@ public class ServerWatcherChild {
                 power(Actions.Kill);
                 logger.error("Server should be dead!");
                 return;
-            } else if (lastHeartBeat !=null && active && Instant.now().isAfter(lastHeartBeat.plusSeconds(maxTimer))) {
+            } else if (active && Instant.now().isAfter(lastHeartBeatLocal.plusSeconds(maxTimer))) {
                 if (!serverRestartSent) {
                     serverRestartSent = true;
                     power(Actions.Restart);
                     logger.warn("Sent Reboot request");
                 }
                 if (Instant.now().isAfter(lastMessage.plusMillis(900))) {
-                    final long time = (Instant.now().getEpochSecond() - lastHeartBeat.getEpochSecond());
+                    final long time = (Instant.now().getEpochSecond() - lastHeartBeatLocal.getEpochSecond());
                     logger.warn("Server Thread has not been setting the timer for " + time + "s." +
                             (serverRestartSent ? "Server Reboot request was sent already. " : "") +
                             "Waiting " + (maxTimer+maxRebootWait - time) + "s more, until the server gets killed.");
                     lastMessage = Instant.now();
                 }
-            } else if (lastHeartBeat !=null && Instant.now().isAfter(lastHeartBeat.plusSeconds(5))) {
+            } else if (Instant.now().isAfter(lastHeartBeatLocal.plusSeconds(5))) {
                 if (Instant.now().isAfter(lastMessage.plusMillis(900))) {
-                    final long time = (Instant.now().getEpochSecond() - lastHeartBeat.getEpochSecond());
+                    final long time = (Instant.now().getEpochSecond() - lastHeartBeatLocal.getEpochSecond());
                     logger.warn("Server Thread has not been setting the timer for " + time + "s. "+
                             (active?"":"No action will be taken!"));
                     lastMessage = Instant.now();
