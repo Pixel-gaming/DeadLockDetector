@@ -6,7 +6,6 @@ import com.c0d3m4513r.pluginapi.API;
 import com.c0d3m4513r.pluginapi.config.TimeEntry;
 import com.c0d3m4513r.pluginapi.config.iface.IConfigLoadableSaveable;
 import lombok.NoArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.val;
 
 import java.io.File;
@@ -72,7 +71,9 @@ public class Process implements IConfigLoadableSaveable {
                 ServerWatcher.config,"\n",
                 Config.Instance.getTimeout().getValue().toString()," ",
                 Config.Instance.getRestartWait().getValue().toString()," ",
-                System.getenv("P_SERVER_UUID"),"\n",
+                Config.Instance.getIgnore_ssl_cert_errors().getValue().toString()," ",
+                Config.Instance.getPanelType().getValue().getPanel().getUUID().orElse(Config.Instance.getId().getValue()),"\n",
+                Config.Instance.getPanelType().getValue().name(),"\n",
                 Config.Instance.getApiKey().getValue(), "\n",
                 Config.Instance.getPanelUrl().getValue(),"\n"
         );

@@ -1,14 +1,12 @@
 package com.c0d3m4513r.deadlockdetector.main;
 
+import com.c0d3m4513r.deadlockdetector.api.Actions;
+import com.c0d3m4513r.deadlockdetector.api.PanelInfo;
+import com.c0d3m4513r.deadlockdetector.api.panels.Panels;
 import com.c0d3m4513r.deadlockdetector.api.ServerWatcher;
-import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.simple.SimpleLogger;
 
-import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.NoSuchElementException;
@@ -17,77 +15,86 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ServerWatcherChild {
-    String perodactylUrl;
     Scanner scn;
     volatile long maxTimer;
     volatile long maxRebootWait;
-    volatile String serverId;
-    volatile String key;
-
+    volatile PanelInfo panelInfo;
     volatile boolean active = true;
 
     ScheduledFuture<?> reactivateTask;
     Instant lastMessage=Instant.now();
     AtomicReference<Instant> lastHeartBeat = new AtomicReference<>(null);
     boolean serverRestartSent = false;
-    Logger logger;
+    public static Logger logger;
 
     ServerWatcherChild(){
-        System.setProperty(SimpleLogger.LOG_FILE_KEY, "System.out");
-        System.setProperty(SimpleLogger.SHOW_DATE_TIME_KEY, "true");
-        System.setProperty(SimpleLogger.DATE_TIME_FORMAT_KEY, "[HH:mm:ss.SSS]");
-        logger = new org.slf4j.simple.SimpleLoggerFactory().getLogger("ServerWatcherChild");
         logger.info("Creating Scanner");
         scn = new Scanner(System.in);
     }
     private void handleAction(String l){
-        if(l.equals(ServerWatcher.heartbeat)){
-            lastHeartBeat.set(Instant.now());
-            logger.debug("Received Heartbeat");
-        } else if (l.equals(ServerWatcher.stopActions)) {
-            long seconds = scn.nextLong();
-            scn.skip(" ");
-            long nanos = scn.nextLong();
-            scn.nextLine();//discard the rest of this line
-            if (seconds>0 || nanos>0){
-                Duration d = Duration.ofSeconds(seconds,nanos);
-                final long value;
-                final TimeUnit unit;
-                {
-                    long value1;
-                    TimeUnit unit1;
-                    try{
-                        value1 = d.toMillis();
-                        unit1 = TimeUnit.MILLISECONDS;
-                    }catch (ArithmeticException e){
-                        value1 = d.getSeconds();
-                        unit1 = TimeUnit.SECONDS;
+        switch (l) {
+            case ServerWatcher.heartbeat:
+                lastHeartBeat.set(Instant.now());
+                logger.debug("Received Heartbeat");
+                break;
+            case ServerWatcher.stopActions:
+                long seconds = scn.nextLong();
+                scn.skip(" ");
+                long nanos = scn.nextLong();
+                scn.nextLine();//discard the rest of this line
+
+                if (seconds > 0 || nanos > 0) {
+                    Duration d = Duration.ofSeconds(seconds, nanos);
+                    final long value;
+                    final TimeUnit unit;
+                    {
+                        long value1;
+                        TimeUnit unit1;
+                        try {
+                            value1 = d.toMillis();
+                            unit1 = TimeUnit.MILLISECONDS;
+                        } catch (ArithmeticException e) {
+                            value1 = d.getSeconds();
+                            unit1 = TimeUnit.SECONDS;
+                        }
+                        unit = unit1;
+                        value = value1;
                     }
-                    unit = unit1;
-                    value = value1;
+                    reactivateTask = Executors.newSingleThreadScheduledExecutor().schedule(this::reactivate, value, unit);
+                    active = false;
+                    logger.warn("Deactivated DeadLockDetector for " + value + unit.toString().toLowerCase() + ".");
                 }
-                reactivateTask=Executors.newSingleThreadScheduledExecutor().schedule(this::reactivate,value,unit);
-                active=false;
-                logger.warn("Deactivated DeadLockDetector for "+value+unit.toString().toLowerCase()+".");
-            }
-        } else if (l.equals(ServerWatcher.config)) {
-            logger.info("Getting MaxTimer");
-            maxTimer = scn.nextLong();
-            logger.info("Getting MaxRebootTime");
-            maxRebootWait = scn.nextLong();
-            logger.info("Getting ServerID");
-            scn.skip(" ");
-            serverId = scn.nextLine();
-            logger.info("Getting API-Key");
-            key = scn.nextLine();
-            logger.info("Getting Panel Url");
-            perodactylUrl = scn.nextLine().trim();
-            if (perodactylUrl.endsWith("/")) perodactylUrl = perodactylUrl.substring(0, perodactylUrl.lastIndexOf('/'));
-            logger.info("Done With Init.");
-        } else if (l.equals(ServerWatcher.startActions)) {
-            if (reactivateTask!=null) reactivateTask.cancel(true);
-            reactivate();
-        } else logger.error("Non-recognised Message: '"+l+"'");
+                break;
+            case ServerWatcher.config:
+                logger.info("Getting MaxTimer");
+                maxTimer = scn.nextLong();
+                logger.info("Getting MaxRebootTime");
+                maxRebootWait = scn.nextLong();
+                logger.info("Getting ignore_ssl_cert_errors");
+                Boolean ignore_ssl_cert_errors = scn.nextBoolean();
+                logger.info("Getting ServerID");
+                scn.skip(" ");
+                String serverId = scn.nextLine();
+                logger.info("Getting Panel Type");
+                String panelType = scn.nextLine();
+                Panels panels = getPanel(panelType);
+                logger.info("Getting API-Key");
+                String key = scn.nextLine();
+                logger.info("Getting Panel Url");
+                String localPanelUrl = scn.nextLine().trim();
+                if (localPanelUrl.endsWith("/"))
+                    localPanelUrl = localPanelUrl.substring(0, localPanelUrl.lastIndexOf('/'));
+                panelInfo = new PanelInfo(panels, localPanelUrl, ignore_ssl_cert_errors, key, serverId);
+                logger.info("Done With Init.");
+                break;
+            case ServerWatcher.startActions:
+                if (reactivateTask != null) reactivateTask.cancel(true);
+                reactivate();
+                break;
+            default:
+                logger.error("Non-recognised Message: '" + l + "'");
+                break;
+        }
     }
     private void reactivate(){
         reactivateTask=null;
@@ -159,47 +166,29 @@ public class ServerWatcherChild {
     }
 
     public static void main(String[] args) {
+        System.setProperty(SimpleLogger.LOG_FILE_KEY, "System.out");
+        System.setProperty(SimpleLogger.SHOW_DATE_TIME_KEY, "true");
+        System.setProperty(SimpleLogger.DATE_TIME_FORMAT_KEY, "[HH:mm:ss.SSS]");
+        logger = new org.slf4j.simple.SimpleLoggerFactory().getLogger("ServerWatcherChild");
         new ServerWatcherChild().run();
     }
 
-    private void power(Actions action){
-        action("/api/client/servers/"+serverId+"/power","POST","{\"signal\":\""+action.action+"\"}");
-    }
-
-    private void action(@NonNull String api,@NonNull String requestMethod,String data){
-        if (perodactylUrl.isEmpty()){
-            logger.info("No panel url specified. Will not actually send a action.");
+    public void power(Actions action) {
+        if (panelInfo == null || panelInfo.getPanel() == null){
+            logger.warn("Invalid panel Information. Will not send a Power action!");
             return;
         }
-        InputStream error=null;
-        try{
-            URL url = new URL(perodactylUrl +api);
-            HttpURLConnection con = (HttpURLConnection)url.openConnection();
-            con.setRequestMethod(requestMethod);
-            con.setRequestProperty("Accept","application/json");
-            con.setRequestProperty("Content-Type","application/json");
-            con.setRequestProperty("Authorization","Bearer "+key);
-            con.setFixedLengthStreamingMode(data.length());
-            con.setDoOutput(true);
-            con.setDoInput(true);
-            error=con.getErrorStream();
-            //Data
-            Writer ods = new OutputStreamWriter(con.getOutputStream());
-            ods.write(data,0,data.length());
-            ods.flush();
-            ods.close();
+        panelInfo.getPanel().getPanel().power(ActionSender.SENDER, action, panelInfo);
+    }
 
-            System.out.println("Sent Action to Pterodactyl at '"+url+"'. Response below:");
-            Scanner scn = new Scanner(con.getInputStream());
-            while (scn.hasNextLine()) System.out.println(scn.nextLine());
-        } catch (MalformedURLException mue){
-            throw new RuntimeException(mue);
-        } catch (IOException e){
-            logger.error("Tried to send action to Pterodactyl at '"+ perodactylUrl +api+"'. There was an error:",e);
-            if(error!=null){
-                Scanner scn = new Scanner(error);
-                while (scn.hasNextLine()) System.err.println(scn.nextLine());
-            }
+    private Panels getPanel(String panelType){
+        if (panelType.equals(Panels.Pterodactyl.name())){
+            return Panels.Pterodactyl;
+        }else if(panelType.equals(Panels.CraftyController.name())){
+            return Panels.CraftyController;
+        }else {
+            logger.error("Not all Panels in the Panel enum are implemented. Your 'panel.type' config key is set to a unrecognised or unsupported value.");
+            return  null;
         }
     }
 }
