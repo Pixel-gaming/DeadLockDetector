@@ -1,12 +1,14 @@
 package com.c0d3m4513r.deadlockdetector.plugin;
 
+import com.c0d3m4513r.deadlockdetector.api.ActionSenderImpl;
+import com.c0d3m4513r.deadlockdetector.api.PanelInfo;
 import com.c0d3m4513r.deadlockdetector.api.ServerWatcher;
 import com.c0d3m4513r.deadlockdetector.plugin.config.Config;
 import com.c0d3m4513r.pluginapi.API;
 import com.c0d3m4513r.pluginapi.config.TimeEntry;
 import com.c0d3m4513r.pluginapi.config.iface.IConfigLoadableSaveable;
 import lombok.NoArgsConstructor;
-import lombok.val;
+import lombok.var;
 
 import java.io.File;
 import java.io.IOException;
@@ -67,12 +69,19 @@ public class Process implements IConfigLoadableSaveable {
         if(o==null || proc==null || !proc.isAlive()) startProcess();
 
         API.getLogger().info("[DeadlockDetector] Sending Config to Observer Process.");
+        ActionSenderImpl.logger = API.getLogger();
+        PanelInfo panelInfo = new PanelInfo(Config.Instance.getPanelType().getValue(),
+                Config.Instance.getPanelUrl().getValue(),
+                Config.Instance.getIgnore_ssl_cert_errors().getValue(),
+                Config.Instance.getApiKey().getValue(),
+                Config.Instance.getId().getValue());
+        var uuid = Config.Instance.getPanelType().getValue().getPanel().getUUID(ActionSenderImpl.SENDER, panelInfo);
         sendValue(
                 ServerWatcher.config,"\n",
                 Config.Instance.getTimeout().getValue().toString()," ",
                 Config.Instance.getRestartWait().getValue().toString()," ",
                 Config.Instance.getIgnore_ssl_cert_errors().getValue().toString()," ",
-                Config.Instance.getPanelType().getValue().getPanel().getUUID().orElse(Config.Instance.getId().getValue()),"\n",
+                uuid ,"\n",
                 Config.Instance.getPanelType().getValue().name(),"\n",
                 Config.Instance.getApiKey().getValue(), "\n",
                 Config.Instance.getPanelUrl().getValue(),"\n"
@@ -110,7 +119,7 @@ public class Process implements IConfigLoadableSaveable {
             startProcess();
         }
         try {
-            for(val s : strings){
+            for(var s : strings){
                 o.write(s);
             }
             o.flush();

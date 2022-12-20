@@ -12,8 +12,8 @@ class Pterodactyl implements Panel {
     Pterodactyl(){}
 
     @Override
-    public @NonNull Optional<String> getUUID() {
-        return Optional.ofNullable(System.getenv("P_SERVER_UUID"));
+    public @NonNull String getUUID(@NonNull ActionSender sender, @NonNull PanelInfo info) {
+        return Optional.ofNullable(System.getenv("P_SERVER_UUID")).orElse(info.getUuid());
     }
 
     public void power(@NonNull ActionSender sender,  @NonNull Actions action, @NonNull PanelInfo panelInfo){

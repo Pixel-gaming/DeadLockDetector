@@ -5,14 +5,12 @@ import com.c0d3m4513r.deadlockdetector.api.Actions;
 import com.c0d3m4513r.deadlockdetector.api.PanelInfo;
 import lombok.NonNull;
 
-import java.util.Optional;
-
 @SuppressWarnings("unused")
 class Panel implements com.c0d3m4513r.deadlockdetector.api.Panel {
     Panel(){}
     @Override
-    public @NonNull Optional<String> getUUID() {
-        return Optional.empty();
+    public @NonNull String getUUID(@NonNull ActionSender sender, @NonNull PanelInfo info) {
+        return info.getUuid();
     }
 
     @Override

@@ -2,12 +2,10 @@ package com.c0d3m4513r.deadlockdetector.api;
 
 import lombok.NonNull;
 
-import java.util.Optional;
-
 public interface Panel {
 
     @NonNull
-    Optional<String> getUUID();
+    String getUUID(@NonNull ActionSender sender, @NonNull PanelInfo info);
 
     void power(@NonNull ActionSender sender, @NonNull Actions action, @NonNull PanelInfo info);
 }

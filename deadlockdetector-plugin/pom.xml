@@ -104,17 +104,16 @@
                             <relocations>
                                 <relocation>
                                     <pattern>com.c0d3m4513r</pattern>
-                                    <shadedPattern>com.c0d3m4513r.shaded.deadlockdetector</shadedPattern>
+                                    <shadedPattern>com.c0d3m4513r.deadlockdetector.shaded</shadedPattern>
                                     <excludes>
                                         <exclude>com.c0d3m4513r.deadlockdetector.**</exclude>
                                     </excludes>
                                 </relocation>
                             </relocations>
                             <artifactSet>
-                                <excludes>
-                                    <exclude>org.slf4j:slf4j-simple</exclude>
-                                    <exclude>org.slf4j:slf4j-api</exclude>
-                                </excludes>
+                                <includes>
+                                    <include>com.c0d3m4513r</include>
+                                </includes>
                             </artifactSet>
                             <filters>
                                 <filter>

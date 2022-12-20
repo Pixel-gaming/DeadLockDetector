@@ -1,15 +1,14 @@
-package com.c0d3m4513r.deadlockdetector.main;
+package com.c0d3m4513r.deadlockdetector.api;
 
-import com.c0d3m4513r.deadlockdetector.api.PanelInfo;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
+import lombok.var;
+import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import javax.net.ssl.*;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -19,17 +18,21 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Optional;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class ActionSender implements com.c0d3m4513r.deadlockdetector.api.ActionSender {
-    public static final ActionSender SENDER = new ActionSender();
+public class ActionSenderImpl implements com.c0d3m4513r.deadlockdetector.api.ActionSender {
+    public static final ActionSenderImpl SENDER = new ActionSenderImpl();
+    @Nullable
+    public static Logger logger = null;
 
     @Override
-    public void action(@NonNull PanelInfo info, @NonNull String api, @NonNull String requestMethod, String data) {
+    public @NonNull Optional<String> action(@NonNull PanelInfo info, @NonNull String api, @NonNull String requestMethod, String data) {
         if (info.getPanelUrl().isEmpty()){
-            ServerWatcherChild.logger.info("No panel url specified. Will not actually send a action.");
-            return;
+            if (logger != null) logger.info("No panel url specified. Will not actually send a action.");
+            return Optional.empty();
         }
         InputStream error=null;
         try{
@@ -52,19 +55,26 @@ public class ActionSender implements com.c0d3m4513r.deadlockdetector.api.ActionS
             ods.flush();
             ods.close();
 
-            ServerWatcherChild.logger.info("Sent Action to " + info.getPanel().name() + " at '"+url+"'. Response below:");
-            Scanner scn = new Scanner(con.getInputStream());
-            while (scn.hasNextLine()) System.out.println(scn.nextLine());
+            if (logger != null) logger.info("Sent Action to " + info.getPanel().name() + " at '"+url+"'. Response below:");
+            var reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            String output = reader.lines().collect(Collectors.joining("\n"));
+            if (logger != null) logger.info("Request result is: {}",output);
+            return Optional.of(output);
         } catch (MalformedURLException mue){
             throw new RuntimeException(mue);
         } catch (IOException e){
-            ServerWatcherChild.logger.error("Tried to send action to " + info.getPanel().name() + " at '"+ info.getPanelUrl() +api+"'. There was an error:");
-            e.printStackTrace();
+            if (logger != null) logger.error("Tried to send action to " + info.getPanel().name() + " at '"+ info.getPanelUrl() +api+"'. There was an error:", e);
             if(error!=null){
                 Scanner scn = new Scanner(error);
-                while (scn.hasNextLine()) ServerWatcherChild.logger.error(scn.nextLine());
+                while (scn.hasNextLine() && logger != null) logger.error(scn.nextLine());
             }
+            return Optional.empty();
         }
+    }
+
+    @Override
+    public @Nullable Logger getLogger() {
+        return logger;
     }
 
     public HttpsURLConnection doTrustToCertificates(HttpsURLConnection connection) {
@@ -90,12 +100,12 @@ public class ActionSender implements com.c0d3m4513r.deadlockdetector.api.ActionS
             sc.init(null, trustAllCerts, new SecureRandom());
             connection.setSSLSocketFactory(sc.getSocketFactory());
         } catch (KeyManagementException | NoSuchAlgorithmException e){
-            ServerWatcherChild.logger.error("Error occurred whilst setting SSLSocetFactory:",e);
+            if (logger != null) logger.error("Error occurred whilst setting SSLSocetFactory:",e);
         }
         HostnameVerifier hv = new HostnameVerifier() {
             public boolean verify(String urlHostName, SSLSession session) {
-                if (!urlHostName.equalsIgnoreCase(session.getPeerHost())) {
-                    ServerWatcherChild.logger.warn("URL host '" + urlHostName + "' is different to SSLSession host '" + session.getPeerHost() + "'.");
+                if (!urlHostName.equalsIgnoreCase(session.getPeerHost()) && logger != null) {
+                    logger.warn("URL host '" + urlHostName + "' is different to SSLSession host '" + session.getPeerHost() + "'.");
                 }
                 return true;
             }

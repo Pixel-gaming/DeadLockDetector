@@ -67,28 +67,6 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                </configuration>
-            </plugin>
-<!--            <plugin>-->
-<!--                &lt;!&ndash; Build an executable JAR &ndash;&gt;-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-jar-plugin</artifactId>-->
-<!--                <version>2.4</version>-->
-<!--                <configuration>-->
-<!--                    <archive>-->
-<!--                        <manifest>-->
-<!--                            <mainClass>com.c0d3m4513r.deadlockdetector.main.ServerWatcherChild</mainClass>-->
-<!--                        </manifest>-->
-<!--                    </archive>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
-                        <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.3.0</version>
                 <executions>
@@ -101,9 +79,15 @@
                             <relocations>
                                 <relocation>
                                     <pattern>org.slf4j</pattern>
-                                    <shadedPattern>com.c0d3m4513r.deadlockdetector.org.slf4j</shadedPattern>
+                                    <shadedPattern>com.c0d3m4513r.deadlockdetector.shaded.slf4j</shadedPattern>
                                 </relocation>
                             </relocations>
+                            <artifactSet>
+                                <includes>
+                                    <include>org.slf4j:slf4j-simple</include>
+                                    <include>com.c0d3m4513r</include>
+                                </includes>
+                            </artifactSet>
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>

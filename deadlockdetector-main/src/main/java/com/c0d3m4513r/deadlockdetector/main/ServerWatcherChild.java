@@ -2,6 +2,7 @@ package com.c0d3m4513r.deadlockdetector.main;
 
 import com.c0d3m4513r.deadlockdetector.api.Actions;
 import com.c0d3m4513r.deadlockdetector.api.PanelInfo;
+import com.c0d3m4513r.deadlockdetector.api.ActionSenderImpl;
 import com.c0d3m4513r.deadlockdetector.api.panels.Panels;
 import com.c0d3m4513r.deadlockdetector.api.ServerWatcher;
 import org.slf4j.Logger;
@@ -178,7 +179,7 @@ public class ServerWatcherChild {
             logger.warn("Invalid panel Information. Will not send a Power action!");
             return;
         }
-        panelInfo.getPanel().getPanel().power(ActionSender.SENDER, action, panelInfo);
+        panelInfo.getPanel().getPanel().power(ActionSenderImpl.SENDER, action, panelInfo);
     }
 
     private Panels getPanel(String panelType){
