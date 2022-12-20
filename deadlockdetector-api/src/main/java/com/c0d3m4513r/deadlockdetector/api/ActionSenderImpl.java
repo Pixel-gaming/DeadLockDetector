@@ -16,7 +16,6 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.Security;
-import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Optional;
 import java.util.Scanner;
@@ -85,12 +84,10 @@ public class ActionSenderImpl implements com.c0d3m4513r.deadlockdetector.api.Act
                         return null;
                     }
 
-                    public void checkServerTrusted(X509Certificate[] certs, String authType) throws CertificateException {
-                        return;
+                    public void checkServerTrusted(X509Certificate[] certs, String authType) {
                     }
 
-                    public void checkClientTrusted(X509Certificate[] certs, String authType) throws CertificateException {
-                        return;
+                    public void checkClientTrusted(X509Certificate[] certs, String authType) {
                     }
                 }
         };
@@ -102,13 +99,11 @@ public class ActionSenderImpl implements com.c0d3m4513r.deadlockdetector.api.Act
         } catch (KeyManagementException | NoSuchAlgorithmException e){
             if (logger != null) logger.error("Error occurred whilst setting SSLSocetFactory:",e);
         }
-        HostnameVerifier hv = new HostnameVerifier() {
-            public boolean verify(String urlHostName, SSLSession session) {
-                if (!urlHostName.equalsIgnoreCase(session.getPeerHost()) && logger != null) {
-                    logger.warn("URL host '" + urlHostName + "' is different to SSLSession host '" + session.getPeerHost() + "'.");
-                }
-                return true;
+        HostnameVerifier hv = (urlHostName, session) -> {
+            if (!urlHostName.equalsIgnoreCase(session.getPeerHost()) && logger != null) {
+                logger.warn("URL host '" + urlHostName + "' is different to SSLSession host '" + session.getPeerHost() + "'.");
             }
+            return true;
         };
         connection.setHostnameVerifier(hv);
         return connection;
