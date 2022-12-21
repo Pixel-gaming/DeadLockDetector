@@ -22,7 +22,7 @@ public class CraftyController implements Panel {
         String workingDir = System.getProperty("user.dir");
         if (workingDir == null) return info.getUuid();
         //get parent directory
-        String parentDir = workingDir.substring(0, workingDir.lastIndexOf(File.separatorChar));
+        String parentDir = workingDir.substring(workingDir.lastIndexOf(File.separatorChar)+1);
 
         var output = sender.action(info, "/api/v2/servers", "GET", logger);
         if (!output.isPresent()) return info.getUuid();
