@@ -19,7 +19,6 @@
             <groupId>com.c0d3m4513r</groupId>
             <artifactId>DeadLockDetector-API</artifactId>
             <version>0.0.1</version>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.c0d3m4513r</groupId>
@@ -36,7 +35,6 @@
             <groupId>com.c0d3m4513r</groupId>
             <artifactId>plugin-api</artifactId>
             <version>0.0.1</version>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.c0d3m4513r</groupId>
@@ -47,12 +45,6 @@
             <groupId>com.c0d3m4513r</groupId>
             <artifactId>api-impl-spigot-112</artifactId>
             <version>0.0.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>2.0.1</version>
-            <scope>provided</scope>
         </dependency>
     </dependencies>
     <repositories>
@@ -101,20 +93,20 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <shadeSourcesContent>true</shadeSourcesContent>
                             <relocations>
                                 <relocation>
                                     <pattern>com.c0d3m4513r</pattern>
-                                    <shadedPattern>com.c0d3m4513r.shaded.deadlockdetector</shadedPattern>
+                                    <shadedPattern>com.c0d3m4513r.deadlockdetector.shaded</shadedPattern>
                                     <excludes>
                                         <exclude>com.c0d3m4513r.deadlockdetector.**</exclude>
                                     </excludes>
                                 </relocation>
                             </relocations>
                             <artifactSet>
-                                <excludes>
-                                    <exclude>org.slf4j:slf4j-simple</exclude>
-                                    <exclude>org.slf4j:slf4j-api</exclude>
-                                </excludes>
+                                <includes>
+                                    <include>com.c0d3m4513r</include>
+                                </includes>
                             </artifactSet>
                             <filters>
                                 <filter>

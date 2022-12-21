@@ -1,19 +1,23 @@
 package com.c0d3m4513r.deadlockdetector.plugin;
 
+import com.c0d3m4513r.deadlockdetector.api.ActionSenderImpl;
+import com.c0d3m4513r.deadlockdetector.api.PanelInfo;
 import com.c0d3m4513r.deadlockdetector.api.ServerWatcher;
+import com.c0d3m4513r.deadlockdetector.api.panels.Panels;
 import com.c0d3m4513r.deadlockdetector.plugin.config.Config;
 import com.c0d3m4513r.pluginapi.API;
 import com.c0d3m4513r.pluginapi.config.TimeEntry;
 import com.c0d3m4513r.pluginapi.config.iface.IConfigLoadableSaveable;
 import lombok.NoArgsConstructor;
-import lombok.SneakyThrows;
-import lombok.val;
+import lombok.var;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.security.CodeSource;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 @NoArgsConstructor
 public class Process implements IConfigLoadableSaveable {
@@ -68,14 +72,29 @@ public class Process implements IConfigLoadableSaveable {
         if(o==null || proc==null || !proc.isAlive()) startProcess();
 
         API.getLogger().info("[DeadlockDetector] Sending Config to Observer Process.");
-        sendValue(
-                ServerWatcher.config,"\n",
-                Config.Instance.getTimeout().getValue().toString()," ",
-                Config.Instance.getRestartWait().getValue().toString()," ",
-                System.getenv("P_SERVER_UUID"),"\n",
-                Config.Instance.getApiKey().getValue(), "\n",
-                Config.Instance.getPanelUrl().getValue(),"\n"
-        );
+        try{
+            var panel = Panels.valueOf(Config.Instance.getPanelType().getValue());
+            PanelInfo panelInfo = new PanelInfo(panel,
+                Config.Instance.getPanelUrl().getValue(),
+                Config.Instance.getIgnore_ssl_cert_errors().getValue(),
+                Config.Instance.getApiKey().getValue(),
+                Config.Instance.getId().getValue());
+            var uuid = panel.getPanel().getUUID(ActionSenderImpl.SENDER, panelInfo, API.getLogger());
+            sendValue(
+                    ServerWatcher.config,"\n",
+                    Config.Instance.getTimeout().getValue().toString()," ",
+                    Config.Instance.getRestartWait().getValue().toString()," ",
+                    Config.Instance.getIgnore_ssl_cert_errors().getValue().toString()," ",
+                    uuid ,"\n",
+                    panel.name(),"\n",
+                    Config.Instance.getApiKey().getValue(), "\n",
+                    Config.Instance.getPanelUrl().getValue(),"\n"
+            );
+        }catch (IllegalArgumentException e){
+            API.getLogger().error("[DeadLockDetector] Invalid Panel Type: "+Config.Instance.getPanelType().getValue()+". Error is:",e);
+            API.getLogger().error("[DeadLockDetector] Please check your config.yml file.");
+            API.getLogger().error("[DeadLockDetector] Valid Panel Types are: \""+Arrays.stream(Panels.values()).map(Panels::name).collect(Collectors.joining(",")) + "\".");
+        }
         API.getLogger().info("[DeadlockDetector] Config Send has completed.");
     }
 
@@ -109,7 +128,7 @@ public class Process implements IConfigLoadableSaveable {
             startProcess();
         }
         try {
-            for(val s : strings){
+            for(var s : strings){
                 o.write(s);
             }
             o.flush();

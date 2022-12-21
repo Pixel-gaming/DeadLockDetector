@@ -3,15 +3,24 @@ timeout: 300
 #After a reboot request has been sent, how many seconds should we wait for the reboot request to be processed.
 #To clarify, the maximum amount of time that can pass between the last tick, and the server getting killed is 'timeout + restartWait'.
 restartWait: 300
-#This is the pterodactyl URL, that requests are sent to.
-#e.g. https://panel.url.here.com
-url: INSERT-Perodactyl-Url-HERE
-#This is the API-Token that is used in the requests.
-#Note: this MUST be a token from a user account (not an Admin/Application API key).
-#Note: the token SHOULD have access to the POWER/REBOOT and POWER/KILL Actions.
-#Note: you MAY restrict the token to only the public ip(may or may not be required. only tested with), and all private íp blocks.
-#Note: I recommend allowing at least the following ip's (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, ::1/128, fc00::/7, fe80::/10)
-key: INSERT-API-TOKEN-HERE
+panel:
+  #This marks what panel you use.
+  #One of: Pterodactyl, CraftyController
+  type: Pterodactyl
+  #This is the pterodactyl URL, that requests are sent to.
+  #e.g. https://panel.url.here.com
+  url: INSERT-Panel-Url-HERE
+  #This is the API-Token that is used in the requests.
+  #Note: If using Pterodactyl: this MUST be a token from a user account (not an Admin/Application API key).
+  #Note: the token SHOULD have access to the POWER/REBOOT and POWER/KILL Actions.
+  #Note: you MAY restrict the token to only the public ip (where possible), and all private íp blocks.
+  #Note: I recommend allowing at least the following ip's (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, ::1/128, fc00::/7, fe80::/10)
+  key: INSERT-API-TOKEN-HERE
+  #This will ignore errors about invalid ssl certificates when making requests to the specified url
+  ignore_ssl_cert_errors: false
+  #The id of the server. This will only be taken into account for Panels,
+  # where Automatic ID grabbing is not (yet) implemented or as a fallback, when the id cannot be grabbed.
+  id: ""
 #If this is false the plugin will still load and register commands.
 #The child process, that has all the logic for when the server gets restarted/killed, however will not start.
 #This is useful if the server is immediately so unresponsive, that this plugin would kill the server.
