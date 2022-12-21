@@ -27,18 +27,13 @@ In some cases it is impossible to get my plugin to work, so I created an indepen
 
 ## Can I use the Plugin?
 
-If you use [Pterodactyl](https://pterodactyl.io/) as your Server Panel, yes!
-To get started check out [the config](deadlockdetector-plugin/src/main/resources/config.yml), and [get the latest release](https://github.com/Pixel-gaming/DeadLockDetector/releases/latest).
-For a new Installation you will want to change the following things (in order of importance):
-1. `url` and `key`. They give the Plugin authorisation to actually restart the server.
-2. `timeout`. This sets how many seconds must pass without any ticks, before the plugin sends a Restart action to Pterodactyl.
-3. `restartWait`. How many seconds must pass after `timeout`, before the KIll action is sent to Pterodactyl.
+| Panel                                           | Support Level | Note                                                                                                                        |
+|-------------------------------------------------|---------------|-----------------------------------------------------------------------------------------------------------------------------|
+| [Pterodactyl](https://pterodactyl.io/)          | 10/10         | It would be hard to find a better way of doing things                                                                       |
+| [Crafty Controller](https://craftycontrol.com/) | 7/10          | Getting the current server Id depends on the fact, that the Working directory will always be named after the server's uuid. |
 
-## What are the commands for this plugin?
 
-See [the Command Usage](https://github.com/Pixel-gaming/DeadLockDetector/wiki/Command-Usage) in the wiki.
-
-### I use panel XY for managing my Servers. Can you add support
+### I use panel XY for managing my Servers, and it isn't listed as supported. Can you add support
 
 This will require investigation for every panel.
 Generally, I need to be able to Restart and Kill servers from an api.
@@ -50,6 +45,18 @@ Please include your Discord Username in your Message, as I might contact you for
 
 Just because I messaged you however, does not mean that support for that panel is guaranteed.
 Every Panel and API is different, and there may be unexpected complications.
+
+## Installation instructions
+
+To get started check out [the config](deadlockdetector-plugin/src/main/resources/config.yml), and [get the latest release](https://github.com/Pixel-gaming/DeadLockDetector/releases/latest).
+For a new Installation you will want to change the following things (in order of importance):
+1. `url` and `key`. They give the Plugin authorisation to actually restart the server.
+2. `timeout`. This sets how many seconds must pass without any ticks, before the plugin sends a Restart action to Pterodactyl.
+3. `restartWait`. How many seconds must pass after `timeout`, before the KIll action is sent to Pterodactyl.
+
+## What are the commands for this plugin?
+
+See [the Command Usage](https://github.com/Pixel-gaming/DeadLockDetector/wiki/Command-Usage) in the wiki.
 
 ## I have found a bug
 
