@@ -30,7 +30,7 @@ public class Config implements IConfigLoadableSaveable {
     @NonNull
     @Loadable
     @Savable
-    private ConfigEntry<Panels> panelType = new ConfigEntry<>(new ClassValue<>(Panels.Pterodactyl, Panels.class), "panel.type");
+    private ConfigEntry<String> panelType = new ConfigEntry<>(new ClassValue<>("Pterodactyl", String.class), "panel.type");
     @NonNull
     @Loadable
     @Savable

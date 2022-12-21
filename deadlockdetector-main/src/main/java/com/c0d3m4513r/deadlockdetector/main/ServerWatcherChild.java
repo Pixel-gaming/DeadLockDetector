@@ -179,11 +179,12 @@ public class ServerWatcherChild {
     }
 
     public void power(Actions action) {
-        if (panelInfo == null || panelInfo.getPanel() == null){
+        Panels panel;
+        if (panelInfo == null || (panel = panelInfo.getPanel()) == null){
             logger.warn("Invalid panel Information. Will not send a Power action!");
             return;
         }
-        panelInfo.getPanel().getPanel().power(ActionSenderImpl.SENDER, action, panelInfo);
+        panel.getPanel().power(ActionSenderImpl.SENDER, action, panelInfo, apiLogger);
     }
 
     private Panels getPanel(String panelType){
