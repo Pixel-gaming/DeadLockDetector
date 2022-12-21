@@ -4,8 +4,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.var;
-import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
+import com.c0d3m4513r.logger.Logger;
 
 import javax.net.ssl.*;
 import java.io.*;
@@ -24,11 +23,9 @@ import java.util.stream.Collectors;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ActionSenderImpl implements com.c0d3m4513r.deadlockdetector.api.ActionSender {
     public static final ActionSenderImpl SENDER = new ActionSenderImpl();
-    @Nullable
-    public static Logger logger = null;
 
     @Override
-    public @NonNull Optional<String> action(@NonNull PanelInfo info, @NonNull String api, @NonNull String requestMethod, String data) {
+    public @NonNull Optional<String> action(@NonNull PanelInfo info, @NonNull String api, @NonNull String requestMethod, @NonNull Logger logger, @NonNull String data) {
         if (info.getPanelUrl().isEmpty()){
             if (logger != null) logger.info("No panel url specified. Will not actually send a action.");
             return Optional.empty();
@@ -71,12 +68,7 @@ public class ActionSenderImpl implements com.c0d3m4513r.deadlockdetector.api.Act
         }
     }
 
-    @Override
-    public @Nullable Logger getLogger() {
-        return logger;
-    }
-
-    public HttpsURLConnection doTrustToCertificates(HttpsURLConnection connection) {
+    public HttpsURLConnection doTrustToCertificates(HttpsURLConnection connection, Logger logger) {
         Security.addProvider(new com.sun.net.ssl.internal.ssl.Provider());
         TrustManager[] trustAllCerts = new TrustManager[]{
                 new X509TrustManager() {
@@ -97,10 +89,10 @@ public class ActionSenderImpl implements com.c0d3m4513r.deadlockdetector.api.Act
             sc.init(null, trustAllCerts, new SecureRandom());
             connection.setSSLSocketFactory(sc.getSocketFactory());
         } catch (KeyManagementException | NoSuchAlgorithmException e){
-            if (logger != null) logger.error("Error occurred whilst setting SSLSocetFactory:",e);
+            logger.error("Error occurred whilst setting SSLSocetFactory:",e);
         }
         HostnameVerifier hv = (urlHostName, session) -> {
-            if (!urlHostName.equalsIgnoreCase(session.getPeerHost()) && logger != null) {
+            if (!urlHostName.equalsIgnoreCase(session.getPeerHost())) {
                 logger.warn("URL host '" + urlHostName + "' is different to SSLSession host '" + session.getPeerHost() + "'.");
             }
             return true;

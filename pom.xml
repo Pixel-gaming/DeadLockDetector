@@ -24,6 +24,7 @@
         <module>PluginDef</module>
         <module>sponge_v7</module>
         <module>spigot_v112</module>
+        <module>Logger</module>
     </modules>
 
     <build>

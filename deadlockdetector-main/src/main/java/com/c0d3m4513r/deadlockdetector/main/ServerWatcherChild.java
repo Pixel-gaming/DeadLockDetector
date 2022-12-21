@@ -5,6 +5,8 @@ import com.c0d3m4513r.deadlockdetector.api.PanelInfo;
 import com.c0d3m4513r.deadlockdetector.api.ActionSenderImpl;
 import com.c0d3m4513r.deadlockdetector.api.panels.Panels;
 import com.c0d3m4513r.deadlockdetector.api.ServerWatcher;
+import com.c0d3m4513r.logger.Slf4jLogger;
+import lombok.var;
 import org.slf4j.Logger;
 import org.slf4j.simple.SimpleLogger;
 
@@ -27,6 +29,7 @@ public class ServerWatcherChild {
     AtomicReference<Instant> lastHeartBeat = new AtomicReference<>(null);
     boolean serverRestartSent = false;
     public static Logger logger;
+    public static com.c0d3m4513r.logger.Logger apiLogger;
 
     ServerWatcherChild(){
         logger.info("Creating Scanner");
@@ -171,6 +174,7 @@ public class ServerWatcherChild {
         System.setProperty(SimpleLogger.SHOW_DATE_TIME_KEY, "true");
         System.setProperty(SimpleLogger.DATE_TIME_FORMAT_KEY, "[HH:mm:ss.SSS]");
         logger = new org.slf4j.simple.SimpleLoggerFactory().getLogger("ServerWatcherChild");
+        apiLogger = new Slf4jLogger(logger, Logger.class);
         new ServerWatcherChild().run();
     }
 

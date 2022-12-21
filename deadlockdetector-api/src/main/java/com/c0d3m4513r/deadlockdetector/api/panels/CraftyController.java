@@ -6,6 +6,7 @@ import com.c0d3m4513r.deadlockdetector.api.Panel;
 import com.c0d3m4513r.deadlockdetector.api.PanelInfo;
 import com.c0d3m4513r.deadlockdetector.api.panels.craftycontroller.Request;
 import com.c0d3m4513r.deadlockdetector.api.panels.craftycontroller.ServerInformation;
+import com.c0d3m4513r.logger.Logger;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
@@ -16,14 +17,14 @@ import java.io.File;
 
 public class CraftyController implements Panel {
     @Override
-    public @NonNull String getUUID(@NonNull ActionSender sender, @NonNull PanelInfo info) {
+    public @NonNull String getUUID(@NonNull ActionSender sender, @NonNull PanelInfo info, @NonNull Logger logger) {
         //get working directory
         String workingDir = System.getProperty("user.dir");
         if (workingDir == null) return info.getUuid();
         //get parent directory
         String parentDir = workingDir.substring(0, workingDir.lastIndexOf(File.separatorChar));
 
-        var output = sender.action(info, "/api/v2/servers", "GET");
+        var output = sender.action(info, "/api/v2/servers", "GET", logger);
         if (!output.isPresent()) return info.getUuid();
 
         try{
@@ -39,28 +40,30 @@ public class CraftyController implements Panel {
                         var uuid = server.getServer_uuid();
                         //is it the correct one?
                         if (!uuid.equals(parentDir)) continue;
+                        var id = server.getServer_id();
+                        logger.info("Id was determined to be '{}'",id);
                         //yes!
                         return String.valueOf(server.getServer_id());
                     }
+                    logger.warn("Could not find server with uuid '"+parentDir+"' in the list of accessible servers.");
                 }else {
-                    if(sender.getLogger() != null) sender.getLogger().warn("Request data is not deserializable to an array of ServerInformation");
+                    logger.warn("Request data is not deserializable to an array of ServerInformation");
                 }
             }else {
-                if(sender.getLogger() != null) sender.getLogger().warn("Request response is not deserializable to Request");
+                logger.warn("Request response is not deserializable to Request");
             }
         }catch (JsonSyntaxException e) {
-            if (sender.getLogger() != null)
-                sender.getLogger().error("Error while parsing Crafty Controller response.", e);
+            logger.error("Error while parsing Crafty Controller response.", e);
         }
-        if(sender.getLogger() != null) sender.getLogger().warn("Falling back to config supplied ID.");
+        logger.warn("Falling back to config supplied ID.");
 
         return info.getUuid();
     }
 
     @Override
-    public void power(@NonNull ActionSender sender, @NonNull Actions action, @NonNull PanelInfo info) {
+    public void power(@NonNull ActionSender sender, @NonNull Actions action, @NonNull PanelInfo info, @NonNull Logger logger) {
         System.out.println("just before action call");
-        sender.action(info, "/api/v2/servers/" + info.getUuid() + "/action/" + getAction(action),"POST");
+        sender.action(info, "/api/v2/servers/" + info.getUuid() + "/action/" + getAction(action),"POST", logger);
     }
 
     @NonNull
