@@ -10,3 +10,6 @@
 [submodule "spigot_v112"]
 	path = spigot_v112
 	url = git@github.com:Pixel-gaming/spigot_v112.git
+[submodule "Logger"]
+	path = Logger
+	url = git@github.com:Pixel-gaming/Logger.git
