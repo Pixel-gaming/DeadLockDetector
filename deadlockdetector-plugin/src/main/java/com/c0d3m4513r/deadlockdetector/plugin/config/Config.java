@@ -18,11 +18,11 @@ public class Config implements IConfigLoadableSaveable {
     @NonNull
     @Loadable
     @Savable
-    private ConfigEntry<Long> restartWait = new ConfigEntry<>(new ClassValue<>(300L, Long.class), "restartWait");
+    private ConfigEntry<Integer> restartWait = new ConfigEntry<>(new ClassValue<>(300, Integer.class), "restartWait");
     @NonNull
     @Loadable
     @Savable
-    private ConfigEntry<Long> timeout = new ConfigEntry<>(new ClassValue<>(300L, Long.class), "timeout");
+    private ConfigEntry<Integer> timeout = new ConfigEntry<>(new ClassValue<>(300, Integer.class), "timeout");
     @NonNull
     @Loadable
     @Savable
