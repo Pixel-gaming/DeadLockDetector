@@ -29,7 +29,7 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
     };
 
     @Override
-    public CommandResult process(CommandSource source, String arguments) throws CommandException {
+    public @NonNull CommandResult process(CommandSource source, String[] arguments) throws CommandException {
         if (!source.hasPerm(PermissionConfig.Instance.getBase().getValue())){
             source.sendMessage(ConfigStrings.Instance.getNoPermission().getValue());
             return API.getCommandResult().error();
@@ -37,7 +37,7 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
         API.getLogger().info("[DeadlockDetector] Manually reset timer. Issued by " + source.getIdentifier());
         Process.PROCESS.heartbeat();
 
-        ArrayDeque<String> args = new ArrayDeque<>(Arrays.asList(arguments.split(" ")));
+        ArrayDeque<String> args = new ArrayDeque<>(Arrays.asList(arguments));
         //arg0 should just be the command alias
         if (args.peek() != null) {
             SubCommands subcommand = PermissionConfig.subcommandConversion.get(args.poll());
@@ -82,14 +82,13 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
         return API.getCommandResult().success();
     }
     @Override
-    public List<String> getSuggestions(CommandSource source, String arguments) {
-        var args = arguments.split(" ");
-        if(args.length == 1)
+    public List<String> getSuggestions(CommandSource source, String[] arguments) {
+        if(arguments.length == 1)
             return PermissionConfig
                     .subcommandConversion
                     .keySet()
                     .parallelStream()
-                    .filter(s->s.startsWith(args[0]))
+                    .filter(s->s.startsWith(arguments[0]))
                     .collect(Collectors.toList());
         else return Collections.emptyList();
     }
