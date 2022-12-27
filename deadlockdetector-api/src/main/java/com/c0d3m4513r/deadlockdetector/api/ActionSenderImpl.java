@@ -84,7 +84,6 @@ public class ActionSenderImpl implements com.c0d3m4513r.deadlockdetector.api.Act
     }
 
     public HttpsURLConnection doTrustToCertificates(HttpsURLConnection connection, Logger logger) {
-        Security.addProvider(new com.sun.net.ssl.internal.ssl.Provider());
         TrustManager[] trustAllCerts = new TrustManager[]{
                 new X509TrustManager() {
                     public X509Certificate[] getAcceptedIssuers() {
