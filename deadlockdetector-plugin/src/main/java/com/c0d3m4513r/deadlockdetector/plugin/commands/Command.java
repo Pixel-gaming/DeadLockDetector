@@ -1,6 +1,5 @@
 package com.c0d3m4513r.deadlockdetector.plugin.commands;
 
-import com.c0d3m4513r.deadlockdetector.plugin.Main;
 import com.c0d3m4513r.deadlockdetector.plugin.Process;
 import com.c0d3m4513r.deadlockdetector.plugin.config.ConfigStrings;
 import com.c0d3m4513r.deadlockdetector.plugin.config.PermissionConfig;
@@ -11,22 +10,13 @@ import com.c0d3m4513r.pluginapi.command.CommandResult;
 import com.c0d3m4513r.pluginapi.command.CommandSource;
 import com.c0d3m4513r.pluginapi.config.TimeEntry;
 import lombok.NonNull;
-import lombok.SneakyThrows;
-import lombok.val;
 import lombok.var;
 
 import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class Command implements com.c0d3m4513r.pluginapi.command.Command {
-    static Function<CommandSource, BiFunction<String,String,Boolean>> sendHelp = (source)->(perm, str) -> {
-        if (source.hasPerm(perm)) {
-            if (!str.isEmpty()) source.sendMessage(str);
-            return true;
-        }else return false;
-    };
+    public static final Command Instance = new Command();
 
     @Override
     public @NonNull CommandResult process(CommandSource source, String[] arguments) throws CommandException {
@@ -37,60 +27,49 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
         API.getLogger().info("[DeadlockDetector] Manually reset timer. Issued by " + source.getIdentifier());
         Process.PROCESS.heartbeat();
 
-        ArrayDeque<String> args = new ArrayDeque<>(Arrays.asList(arguments));
         //arg0 should just be the command alias
-        if (args.peek() != null) {
-            SubCommands subcommand = PermissionConfig.subcommandConversion.get(args.poll());
-            if (subcommand==null) {
-                source.sendMessage("No valid subcommand was found. ");
-                source.sendMessage(getUsage(source));
-                throw new CommandException("No valid subcommand was found. " + getUsage(source));
-            } else if (source.hasPerm(subcommand.perm.get()) && (subcommand.enabled == null || subcommand.enabled.getAsBoolean()) ){
-                return subcommand.function.apply(this).apply(source, args);
-            } else {
-                throw new CommandException(ConfigStrings.Instance.getNoPermission().getValue());
-            }
-        }else{
+        if (arguments.length < 1 || arguments[0] == null) {
             source.sendMessage(getUsage(source));
             return API.getCommandResult().success();
         }
-    }
 
-    public CommandResult help(CommandSource source, ArrayDeque<String> ignoredArguments){
-        val sendHelp = Command.sendHelp.apply(source);
-        sendHelp.apply(
-                PermissionConfig.Instance.getBase().getValue(),
-                ConfigStrings.Instance.getBase().getValue()
-        );
-        sendHelp.apply(
-                PermissionConfig.Instance.getStart().getValue(),
-                ConfigStrings.Instance.getStart().getValue()
-        );
-        sendHelp.apply(
-                PermissionConfig.Instance.getStop().getValue(),
-                ConfigStrings.Instance.getStop().getValue()
-        );
-        sendHelp.apply(
-                PermissionConfig.Instance.getSleep().getValue(),
-                ConfigStrings.Instance.getSleep().getValue()
-        );
-        sendHelp.apply(
-                PermissionConfig.Instance.getReload().getValue(),
-                ConfigStrings.Instance.getReload().getValue()
-        );
-
-        return API.getCommandResult().success();
+        SubCommands subcommand = PermissionConfig.subcommandConversion.get(arguments[0]);
+        if (subcommand==null) {
+            source.sendMessage("No valid subcommand was found. ");
+            source.sendMessage(getUsage(source));
+            throw new CommandException("No valid subcommand was found. " + getUsage(source));
+        } else if (source.hasPerm(subcommand.perm.get()) && (subcommand.enabled == null || subcommand.enabled.getAsBoolean()) ){
+            return subcommand.function.get().process(source, Arrays.copyOfRange(arguments, 1, arguments.length));
+        } else {
+            throw new CommandException(ConfigStrings.Instance.getNoPermission().getValue());
+        }
     }
     @Override
     public List<String> getSuggestions(CommandSource source, String[] arguments) {
-        if(arguments.length == 1)
-            return PermissionConfig
-                    .subcommandConversion
-                    .keySet()
-                    .parallelStream()
-                    .filter(s->s.startsWith(arguments[0]))
+        var stream = Arrays.stream(SubCommands.values())
+                .filter(s->source.hasPerm(s.perm.get()))
+                .filter(s->s.enabled == null || s.enabled.getAsBoolean());
+        if(arguments.length <= 1) {
+            return stream.map(Enum::name)
+                    .filter(s -> s.startsWith(arguments[0]))
                     .collect(Collectors.toList());
-        else return Collections.emptyList();
+        }
+        return stream.map(s -> s.function.get())
+                .map(s -> {
+                    Optional<List<String>> output;
+                    try {
+                        output = Optional.of(s.getSuggestions(source, Arrays.copyOfRange(arguments, 1, arguments.length)));
+                    } catch (CommandException e) {
+                        output = Optional.empty();
+                    }
+                    return output;
+                }).filter(Optional::isPresent)
+                .map(Optional::get)
+                .reduce(new LinkedList<>(), (a, b) -> {
+                    a.addAll(b);
+                    return a;
+                });
+
     }
 
     @Override
@@ -100,8 +79,17 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
 
     @Override
     public Optional<String> getHelp(CommandSource source) {
-        source.sendMessage("Not Implemented. - Get Help");
-        return Optional.empty();
+        if (!source.hasPerm(PermissionConfig.Instance.getBase().getValue())) return Optional.empty();
+
+        var str = ConfigStrings.Instance.getBase().getValue();
+        str = str + "\n"+ Arrays.stream(SubCommands.values())
+                .parallel()
+                .map(e->e.function.get())
+                .map(e->e.getHelp(source))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.joining("\n"));
+        return Optional.of(str);
     }
 
     @Override
@@ -114,42 +102,7 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
         return "Valid Subcommands are "+ subcommands +".";
     }
 
-    public CommandResult stop(CommandSource source, ArrayDeque<String> arguments) {
-        Optional<TimeEntry> time = tryGetRequiredTimeEntry(source, arguments.peek());
-        if (!time.isPresent()) return API.getCommandResult().error();
-        arguments.poll();
-
-        API.getLogger().info("Stopping DeadLockDetector.");
-        Process.PROCESS.stopAction(time.get());
-        source.sendMessage("Send a request to not take any action in the next "+time.get()+".");
-        return API.getCommandResult().success();
-    }
-
-    public CommandResult start(CommandSource source, ArrayDeque<String> ignoredArguments) {
-        API.getLogger().info("Starting DeadLockDetector again.");
-        Process.PROCESS.startAction();
-        source.sendMessage("Send a request to reactivate the DeadLockDetector");
-        return API.getCommandResult().success();
-    }
-
-    @SneakyThrows
-    public CommandResult sleep(CommandSource source, ArrayDeque<String> arguments) {
-        if (!Main.DEVELOPMENT) return API.getCommandResult().error();
-
-        Optional<TimeEntry> time = tryGetRequiredTimeEntry(source, arguments.peek());
-        if (!time.isPresent()) return API.getCommandResult().error();
-        arguments.poll();
-
-        API.getLogger().info("Sleeping now.");
-        try {
-            Thread.sleep(time.get().getMs());
-        } catch (InterruptedException e) {
-            throw new CommandException("exception",e);
-        }
-        return API.getCommandResult().success();
-    }
-
-    public Optional<TimeEntry> tryGetRequiredTimeEntry(@NonNull CommandSource source, @Nullable String argument){
+    public static Optional<TimeEntry> tryGetRequiredTimeEntry(@NonNull CommandSource source, @Nullable String argument){
         if (argument == null){
             source.sendMessage(ConfigStrings.Instance.getRequiredArgs().getValue());
             return Optional.empty();
@@ -160,11 +113,5 @@ public class Command implements com.c0d3m4513r.pluginapi.command.Command {
             return Optional.empty();
         }
         return time;
-    }
-
-    public CommandResult reload(CommandSource ignoredArguments, ArrayDeque<String> ignoredArguments1) {
-        API.getConfigLoader().updateConfigLoader();
-        API.getConfig().loadValue();
-        return API.getCommandResult().success();
     }
 }
