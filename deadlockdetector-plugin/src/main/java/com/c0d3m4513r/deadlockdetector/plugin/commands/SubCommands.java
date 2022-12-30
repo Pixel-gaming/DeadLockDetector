@@ -3,37 +3,31 @@ package com.c0d3m4513r.deadlockdetector.plugin.commands;
 import com.c0d3m4513r.deadlockdetector.plugin.Main;
 import com.c0d3m4513r.deadlockdetector.plugin.config.PermissionConfig;
 import com.c0d3m4513r.pluginapi.Nullable;
-import com.c0d3m4513r.pluginapi.command.CommandResult;
-import com.c0d3m4513r.pluginapi.command.CommandSource;
 import lombok.*;
 
-import java.util.ArrayDeque;
-import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 @AllArgsConstructor
 public enum SubCommands {
-    help(()-> PermissionConfig.Instance.getBase().getValue(), r->r::help),
+    help(()-> PermissionConfig.Instance.getBase().getValue(), ()->CommandHelp.Instance),
 //    usage(()->PermissionConfig.Instance.getBase().getValue(), r->r::usage),
 
-    stop(()->PermissionConfig.Instance.getStop().getValue(), r->r::stop),
-    start(()->PermissionConfig.Instance.getStart().getValue(), r->r::start),
+    stop(()->PermissionConfig.Instance.getStop().getValue(), ()->CommandStop.Instance),
+    start(()->PermissionConfig.Instance.getStart().getValue(), ()->CommandStart.Instance),
 //debug only. We enforce that in the method itself.
-    sleep(()->PermissionConfig.Instance.getStart().getValue(), ()-> Main.DEVELOPMENT, r->r::sleep),
+    sleep(()->PermissionConfig.Instance.getStart().getValue(), ()-> Main.DEVELOPMENT, ()->CommandSleep.Instance),
 
-    reloadConfig(()->PermissionConfig.Instance.getReload().getValue(), r->r::reload);
+    reloadConfig(()->PermissionConfig.Instance.getReload().getValue(), ()->CommandReload.Instance);
     @NonNull
     public final Supplier<String> perm;
 
     @Nullable
     public final BooleanSupplier enabled;
     @NonNull
-    public final Function<Command, BiFunction<CommandSource, ArrayDeque<String>, CommandResult>> function;
+    public final Supplier<com.c0d3m4513r.pluginapi.command.Command> function;
 
-    SubCommands(Supplier<String> permSupplier, Function<Command, BiFunction<CommandSource, ArrayDeque<String>, CommandResult>> functionSupplier){
+    SubCommands(Supplier<String> permSupplier, Supplier<com.c0d3m4513r.pluginapi.command.Command> functionSupplier){
         this(permSupplier, null, functionSupplier);
     }
 }
