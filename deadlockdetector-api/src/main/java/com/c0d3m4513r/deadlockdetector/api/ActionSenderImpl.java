@@ -103,7 +103,7 @@ public class ActionSenderImpl implements com.c0d3m4513r.deadlockdetector.api.Act
             sc.init(null, trustAllCerts, new SecureRandom());
             connection.setSSLSocketFactory(sc.getSocketFactory());
         } catch (KeyManagementException | NoSuchAlgorithmException e){
-            logger.error("Error occurred whilst setting SSLSocetFactory:",e);
+            logger.error("Error occurred whilst setting SSLSocketFactory:",e);
         }
         HostnameVerifier hv = (urlHostName, session) -> {
             if (!urlHostName.equalsIgnoreCase(session.getPeerHost())) {

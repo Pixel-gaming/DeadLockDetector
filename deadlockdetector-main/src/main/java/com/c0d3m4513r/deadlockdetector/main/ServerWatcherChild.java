@@ -6,7 +6,6 @@ import com.c0d3m4513r.deadlockdetector.api.ActionSenderImpl;
 import com.c0d3m4513r.deadlockdetector.api.panels.Panels;
 import com.c0d3m4513r.deadlockdetector.api.ServerWatcher;
 import com.c0d3m4513r.logger.Slf4jLogger;
-import lombok.var;
 import org.slf4j.Logger;
 import org.slf4j.simple.SimpleLogger;
 
@@ -35,61 +34,17 @@ public class ServerWatcherChild {
         logger.info("Creating Scanner");
         scn = new Scanner(System.in);
     }
+
     private void handleAction(String l){
         switch (l) {
             case ServerWatcher.heartbeat:
-                lastHeartBeat.set(Instant.now());
-                logger.debug("Received Heartbeat");
+                handleHeartbeat();
                 break;
             case ServerWatcher.stopActions:
-                long seconds = scn.nextLong();
-                scn.skip(" ");
-                long nanos = scn.nextLong();
-                scn.nextLine();//discard the rest of this line
-
-                if (seconds > 0 || nanos > 0) {
-                    Duration d = Duration.ofSeconds(seconds, nanos);
-                    final long value;
-                    final TimeUnit unit;
-                    {
-                        long value1;
-                        TimeUnit unit1;
-                        try {
-                            value1 = d.toMillis();
-                            unit1 = TimeUnit.MILLISECONDS;
-                        } catch (ArithmeticException e) {
-                            value1 = d.getSeconds();
-                            unit1 = TimeUnit.SECONDS;
-                        }
-                        unit = unit1;
-                        value = value1;
-                    }
-                    reactivateTask = Executors.newSingleThreadScheduledExecutor().schedule(this::reactivate, value, unit);
-                    active = false;
-                    logger.warn("Deactivated DeadLockDetector for " + value + unit.toString().toLowerCase() + ".");
-                }
+                handleStop();
                 break;
             case ServerWatcher.config:
-                logger.info("Getting MaxTimer");
-                maxTimer = scn.nextLong();
-                logger.info("Getting MaxRebootTime");
-                maxRebootWait = scn.nextLong();
-                logger.info("Getting ignore_ssl_cert_errors");
-                Boolean ignore_ssl_cert_errors = scn.nextBoolean();
-                logger.info("Getting ServerID");
-                scn.skip(" ");
-                String serverId = scn.nextLine();
-                logger.info("Getting Panel Type");
-                String panelType = scn.nextLine();
-                Panels panels = getPanel(panelType);
-                logger.info("Getting API-Key");
-                String key = scn.nextLine();
-                logger.info("Getting Panel Url");
-                String localPanelUrl = scn.nextLine().trim();
-                if (localPanelUrl.endsWith("/"))
-                    localPanelUrl = localPanelUrl.substring(0, localPanelUrl.lastIndexOf('/'));
-                panelInfo = new PanelInfo(panels, localPanelUrl, ignore_ssl_cert_errors, key, serverId);
-                logger.info("Done With Init.");
+                handleConfig();
                 break;
             case ServerWatcher.startActions:
                 if (reactivateTask != null) reactivateTask.cancel(true);
@@ -100,6 +55,62 @@ public class ServerWatcherChild {
                 break;
         }
     }
+
+    private void handleHeartbeat(){
+        lastHeartBeat.set(Instant.now());
+        logger.debug("Received Heartbeat");
+    }
+    private void handleStop(){
+        long seconds = scn.nextLong();
+        scn.skip(" ");
+        long nanos = scn.nextLong();
+        scn.nextLine();//discard the rest of this line
+
+        if (seconds > 0 || nanos > 0) {
+            Duration d = Duration.ofSeconds(seconds, nanos);
+            final long value;
+            final TimeUnit unit;
+
+            long value1;
+            TimeUnit unit1;
+            try {
+                value1 = d.toMillis();
+                unit1 = TimeUnit.MILLISECONDS;
+            } catch (ArithmeticException e) {
+                value1 = d.getSeconds();
+                unit1 = TimeUnit.SECONDS;
+            }
+            unit = unit1;
+            value = value1;
+
+            reactivateTask = Executors.newSingleThreadScheduledExecutor().schedule(this::reactivate, value, unit);
+            active = false;
+            logger.warn("Deactivated DeadLockDetector for " + value + unit.toString().toLowerCase() + ".");
+        }
+    }
+    private void handleConfig(){
+        logger.info("Getting MaxTimer");
+        maxTimer = scn.nextLong();
+        logger.info("Getting MaxRebootTime");
+        maxRebootWait = scn.nextLong();
+        logger.info("Getting ignore_ssl_cert_errors");
+        Boolean ignore_ssl_cert_errors = scn.nextBoolean();
+        logger.info("Getting ServerID");
+        scn.skip(" ");
+        String serverId = scn.nextLine();
+        logger.info("Getting Panel Type");
+        String panelType = scn.nextLine();
+        Panels panels = getPanel(panelType);
+        logger.info("Getting API-Key");
+        String key = scn.nextLine();
+        logger.info("Getting Panel Url");
+        String localPanelUrl = scn.nextLine().trim();
+        if (localPanelUrl.endsWith("/"))
+            localPanelUrl = localPanelUrl.substring(0, localPanelUrl.lastIndexOf('/'));
+        panelInfo = new PanelInfo(panels, localPanelUrl, ignore_ssl_cert_errors, key, serverId);
+        logger.info("Done With Init.");
+    }
+
     private void reactivate(){
         reactivateTask=null;
         lastHeartBeat.set(null);
